@@ -228,7 +228,7 @@ export function useSync() {
         { onConflict: "owner_id,base_event_id" }
       )
     },
-    [overrideMap, persistOverrides, user]
+    [overrideMap, persistOverrides, statusMap, user]
   )
 
   const getStatus = useCallback(
