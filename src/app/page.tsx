@@ -1,7 +1,19 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { addDays, addMonths, addWeeks, format, getDay, parse, startOfWeek } from "date-fns"
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  format,
+  getDay,
+  parse,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  endOfMonth,
+  endOfWeek,
+} from "date-fns"
 import { ptBR } from "date-fns/locale"
 import {
   Calendar as BigCalendar,
@@ -38,6 +50,21 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales: { "pt-BR": ptBR },
 })
+
+const getCalendarRange = (view: View, date: Date): DateRange => {
+  if (view === "month") {
+    const start = startOfWeek(startOfMonth(date), { locale: ptBR })
+    const end = endOfWeek(endOfMonth(date), { locale: ptBR })
+    return { start, end: addDays(end, 1) }
+  }
+  if (view === "day") {
+    const start = startOfDay(date)
+    return { start, end: addDays(start, 1) }
+  }
+  const start = startOfWeek(date, { locale: ptBR })
+  const end = endOfWeek(date, { locale: ptBR })
+  return { start, end: addDays(end, 1) }
+}
 
 export default function Home() {
   const { view, setView, setAutoView } = useViewStore()
@@ -112,6 +139,11 @@ export default function Home() {
   }
 
   useEffect(() => {
+    if (view !== "calendar") return
+    setDateRange(getCalendarRange(calendarView, calendarDate))
+  }, [calendarDate, calendarView, view])
+
+  useEffect(() => {
     if (view !== "list") return
     const now = new Date()
     const start =
@@ -167,6 +199,23 @@ export default function Home() {
     })
     return `${formatter.format(start)} – ${formatter.format(end)}`
   }, [dateRange])
+
+  const calendarTitle = useMemo(() => {
+    if (calendarView === "month") {
+      return format(calendarDate, "MMMM yyyy", { locale: ptBR })
+    }
+    if (calendarView === "day") {
+      return format(calendarDate, "d 'de' MMMM", { locale: ptBR })
+    }
+    if (!dateRange) return "Semana atual"
+    const start = dateRange.start
+    const end = new Date(dateRange.end.getTime() - 24 * 60 * 60 * 1000)
+    const formatter = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "short",
+    })
+    return `${formatter.format(start)} – ${formatter.format(end)}`
+  }, [calendarDate, calendarView, dateRange])
 
   const colorPalette = [
     "#ff6f00",
@@ -394,6 +443,73 @@ export default function Home() {
             </aside>
             {view === "calendar" ? (
               <div className="relative min-h-[calc(100vh-200px)] rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+                <div className="mb-4 flex flex-col gap-3 lg:hidden">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">
+                      {calendarTitle}
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
+                      onClick={() => setCalendarDate(new Date())}
+                    >
+                      Hoje
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
+                        onClick={() => shiftCalendarDate("prev")}
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
+                        onClick={() => shiftCalendarDate("next")}
+                      >
+                        Avançar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1 text-xs">
+                      <button
+                        type="button"
+                        className={`rounded-full px-2 py-1 ${
+                          calendarView === "month"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                        onClick={() => setCalendarView("month")}
+                      >
+                        Mês
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-full px-2 py-1 ${
+                          calendarView === "week"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                        onClick={() => setCalendarView("week")}
+                      >
+                        Semana
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-full px-2 py-1 ${
+                          calendarView === "day"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                        onClick={() => setCalendarView("day")}
+                      >
+                        Dia
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 {isLoading ? (
                   <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/40 backdrop-blur-sm">
                     <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-sm">
@@ -414,7 +530,10 @@ export default function Home() {
                     onNavigate={(date) => setCalendarDate(date)}
                     onView={(nextView) => setCalendarView(nextView)}
                     onRangeChange={(range) => {
-                      const normalized = normalizeRange(range as DateRange | Date[])
+                      if (view !== "calendar") return
+                      const normalized = normalizeRange(
+                        range as DateRange | Date[]
+                      )
                       setDateRange(normalized)
                     }}
                     messages={{
