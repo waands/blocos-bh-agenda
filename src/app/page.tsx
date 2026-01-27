@@ -180,73 +180,27 @@ export default function Home() {
               Blocos BH
             </h1>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            {view === "calendar" ? (
-              <div className="flex items-center gap-2 text-sm">
-                <label className="text-muted-foreground">Ir para</label>
-                <input
-                  type="date"
-                  value={calendarJumpDate}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    setCalendarJumpDate(value)
-                    if (value) {
-                      calendarRef.current?.getApi().gotoDate(value)
-                    }
-                  }}
-                  className="h-9 rounded-md border border-border bg-background px-2"
-                />
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <label className="text-muted-foreground">Período</label>
-                <input
-                  type="date"
-                  value={listStart}
-                  onChange={(event) => setListStart(event.target.value)}
-                  className="h-9 rounded-md border border-border bg-background px-2"
-                />
-                <span className="text-muted-foreground">até</span>
-                <input
-                  type="date"
-                  value={listEnd}
-                  onChange={(event) => setListEnd(event.target.value)}
-                  className="h-9 rounded-md border border-border bg-background px-2"
-                />
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground underline"
-                  onClick={() => {
-                    setListStart("")
-                    setListEnd("")
-                  }}
-                >
-                  limpar
-                </button>
-              </div>
-            )}
-            <ToggleGroup
-              type="single"
-              value={view}
-              onValueChange={(value) => {
-                if (value) setView(value as ViewMode)
-              }}
-              className="rounded-full border border-border bg-background p-1"
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(value) => {
+              if (value) setView(value as ViewMode)
+            }}
+            className="rounded-full border border-border bg-background p-1"
+          >
+            <ToggleGroupItem
+              value="calendar"
+              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
             >
-              <ToggleGroupItem
-                value="calendar"
-                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                Calendário
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="list"
-                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                Lista
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
+              Calendário
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="list"
+              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              Lista
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       </header>
 
@@ -254,48 +208,6 @@ export default function Home() {
         {errorMessage ? (
           <div className="rounded-2xl border border-destructive/40 bg-background p-6 text-sm text-destructive">
             {errorMessage}
-          </div>
-        ) : view === "list" ? (
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
-              {isLoading ? (
-                <p className="text-sm text-muted-foreground">
-                  Carregando eventos...
-                </p>
-              ) : null}
-              {listTimedEvents.map((event) => (
-                <EventRow
-                  key={event.id}
-                  event={event}
-                  status={getStatus(event.id)}
-                  onStatusChange={(status) => setStatus(event.id, status)}
-                />
-              ))}
-              {listTimedEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum evento com horário definido nesta semana.
-                </p>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Horário a divulgar
-              </p>
-              {listUndeterminedEvents.length > 0 ? (
-                listUndeterminedEvents.map((event) => (
-                  <EventRow
-                    key={event.id}
-                    event={event}
-                    status={getStatus(event.id)}
-                    onStatusChange={(status) => setStatus(event.id, status)}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum evento sem horário definido.
-                </p>
-              )}
-            </div>
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_240px]">
@@ -317,14 +229,36 @@ export default function Home() {
                       <button
                         type="button"
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
-                        onClick={() => calendarRef.current?.getApi().prev()}
+                        onClick={() =>
+                          view === "calendar"
+                            ? calendarRef.current?.getApi().prev()
+                            : setListStart((current) => {
+                                if (!current) return current
+                                const date = new Date(
+                                  `${current}T00:00:00-03:00`
+                                )
+                                date.setDate(date.getDate() - 7)
+                                return date.toISOString().slice(0, 10)
+                              })
+                        }
                       >
                         Voltar
                       </button>
                       <button
                         type="button"
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
-                        onClick={() => calendarRef.current?.getApi().next()}
+                        onClick={() =>
+                          view === "calendar"
+                            ? calendarRef.current?.getApi().next()
+                            : setListStart((current) => {
+                                if (!current) return current
+                                const date = new Date(
+                                  `${current}T00:00:00-03:00`
+                                )
+                                date.setDate(date.getDate() + 7)
+                                return date.toISOString().slice(0, 10)
+                              })
+                        }
                       >
                         Avançar
                       </button>
@@ -340,28 +274,17 @@ export default function Home() {
                       type="button"
                       className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
                       onClick={() =>
-                        calendarRef.current?.getApi().changeView("dayGridMonth")
+                        setView("calendar")
                       }
                     >
-                      Mês
+                      Calendário
                     </button>
                     <button
                       type="button"
                       className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() =>
-                        calendarRef.current?.getApi().changeView("timeGridWeek")
-                      }
+                      onClick={() => setView("list")}
                     >
-                      Semana
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() =>
-                        calendarRef.current?.getApi().changeView("timeGridDay")
-                      }
-                    >
-                      Dia
+                      Lista
                     </button>
                   </div>
                 </div>
@@ -371,48 +294,146 @@ export default function Home() {
                   </p>
                   <p className="mt-1">{rangeLabel}</p>
                 </div>
+                {view === "calendar" ? (
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                      Ir para data
+                    </p>
+                    <input
+                      type="date"
+                      value={calendarJumpDate}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setCalendarJumpDate(value)
+                        if (value) {
+                          calendarRef.current?.getApi().gotoDate(value)
+                        }
+                      }}
+                      className="mt-3 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                      Filtrar período
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 text-sm">
+                      <input
+                        type="date"
+                        value={listStart}
+                        onChange={(event) => setListStart(event.target.value)}
+                        className="h-9 rounded-md border border-border bg-background px-2"
+                      />
+                      <input
+                        type="date"
+                        value={listEnd}
+                        onChange={(event) => setListEnd(event.target.value)}
+                        className="h-9 rounded-md border border-border bg-background px-2"
+                      />
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground underline"
+                        onClick={() => {
+                          setListStart("")
+                          setListEnd("")
+                        }}
+                      >
+                        limpar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </aside>
-            <div className="rounded-2xl border border-border bg-background p-4 shadow-sm min-h-[calc(100vh-200px)]">
-              {isLoading ? (
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Atualizando eventos...
-                </p>
-              ) : null}
-              <FullCalendar
-                ref={calendarRef}
-                plugins={[
-                  dayGridPlugin,
-                  timeGridPlugin,
-                  interactionPlugin,
-                  scrollGridPlugin,
-                ]}
-                locales={[ptBrLocale]}
-                locale="pt-br"
-                initialView="timeGridWeek"
-                headerToolbar={{
-                  left: "prev,next today",
-                  center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay",
-                }}
-                dayMinWidth={180}
-                datesSet={handleDatesSet}
-                events={calendarEvents}
-                height="100%"
-                allDaySlot={false}
-                slotMinTime="06:00:00"
-                slotMaxTime="23:00:00"
-                eventClick={(info) => {
-                  const found = timedEvents.find(
-                    (event) => event.id === info.event.id
-                  )
-                  if (found) {
-                    setSelectedEvent(found)
-                    setIsSheetOpen(true)
-                  }
-                }}
-              />
-            </div>
+            {view === "calendar" ? (
+              <div className="relative rounded-2xl border border-border bg-background p-4 shadow-sm min-h-[calc(100vh-200px)]">
+                {isLoading ? (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/40 backdrop-blur-sm">
+                    <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                      <span className="inline-flex size-2 animate-pulse rounded-full bg-primary" />
+                      Atualizando
+                    </div>
+                  </div>
+                ) : null}
+                <div className={isLoading ? "blur-sm" : ""}>
+                  <FullCalendar
+                    ref={calendarRef}
+                    plugins={[
+                      dayGridPlugin,
+                      timeGridPlugin,
+                      interactionPlugin,
+                      scrollGridPlugin,
+                    ]}
+                    locales={[ptBrLocale]}
+                    locale="pt-br"
+                    initialView="timeGridWeek"
+                    headerToolbar={{
+                      left: "prev,next today",
+                      center: "title",
+                      right: "dayGridMonth,timeGridWeek,timeGridDay",
+                    }}
+                    dayMinWidth={180}
+                    datesSet={handleDatesSet}
+                    events={calendarEvents}
+                    height="100%"
+                    allDaySlot={false}
+                    slotMinTime="06:00:00"
+                    slotMaxTime="23:00:00"
+                    eventClick={(info) => {
+                      const found = timedEvents.find(
+                        (event) => event.id === info.event.id
+                      )
+                      if (found) {
+                        setSelectedEvent(found)
+                        setIsSheetOpen(true)
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4">
+                  {isLoading ? (
+                    <p className="text-sm text-muted-foreground">
+                      Carregando eventos...
+                    </p>
+                  ) : null}
+                  {listTimedEvents.map((event) => (
+                    <EventRow
+                      key={event.id}
+                      event={event}
+                      status={getStatus(event.id)}
+                      onStatusChange={(status) => setStatus(event.id, status)}
+                    />
+                  ))}
+                  {listTimedEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum evento com horário definido nesta semana.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Horário a divulgar
+                  </p>
+                  {listUndeterminedEvents.length > 0 ? (
+                    listUndeterminedEvents.map((event) => (
+                      <EventRow
+                        key={event.id}
+                        event={event}
+                        status={getStatus(event.id)}
+                        onStatusChange={(status) => setStatus(event.id, status)}
+                      />
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum evento sem horário definido.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             <aside className="hidden rounded-2xl border border-border bg-background p-4 text-sm lg:block">
               <div className="flex flex-col gap-4">
                 <div>
@@ -462,8 +483,8 @@ export default function Home() {
                     Dica rápida
                   </p>
                   <p className="mt-1">
-                    Use o campo “Ir para” no topo para pular direto para uma
-                    data específica.
+                    Use o filtro do menu esquerdo para ajustar o período da
+                    lista ou pular para uma data específica no calendário.
                   </p>
                 </div>
               </div>
