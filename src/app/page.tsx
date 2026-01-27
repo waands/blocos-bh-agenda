@@ -82,6 +82,8 @@ export default function Home() {
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
+  const [searchTerm, setSearchTerm] = useState<string>("")
+  const [genreFilter, setGenreFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<
     "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
@@ -226,18 +228,56 @@ export default function Home() {
     setDateRange({ start, end })
   }, [listEnd, listStart, view])
 
+  const extractGenres = (input?: string | null) => {
+    if (!input) return []
+    const match = input.match(/ritmos?:\s*([^\n|]+)/i)
+    const candidate = match ? match[1] : input.length <= 40 ? input : ""
+    if (!candidate) return []
+    return candidate
+      .split(/[;,/]/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  }
+
+  const genreOptions = useMemo(() => {
+    const options = new Set<string>()
+    events.forEach((event) => {
+      extractGenres(event.description).forEach((genre) => options.add(genre))
+    })
+    return Array.from(options).sort((a, b) => a.localeCompare(b))
+  }, [events])
+
   const statusFilteredEvents = useMemo(() => {
-    if (statusFilter === "all") return events
+    const normalizedSearch = searchTerm.trim().toLowerCase()
 
     return events.filter((event) => {
-      const status = getStatus(event.id)
-      if (statusFilter === "marked") {
-        return status === "maybe" || status === "going" || status === "sure"
+      if (statusFilter !== "all") {
+        const status = getStatus(event.id)
+        if (statusFilter === "marked") {
+          if (status !== "maybe" && status !== "going" && status !== "sure") {
+            return false
+          }
+        } else if (statusFilter === "none") {
+          if (status !== null) return false
+        } else if (status !== statusFilter) {
+          return false
+        }
       }
-      if (statusFilter === "none") return status === null
-      return status === statusFilter
+
+      if (normalizedSearch && !event.title.toLowerCase().includes(normalizedSearch)) {
+        return false
+      }
+
+      if (genreFilter !== "all") {
+        const genres = extractGenres(event.description)
+        if (!genres.some((genre) => genre === genreFilter)) {
+          return false
+        }
+      }
+
+      return true
     })
-  }, [events, getStatus, statusFilter])
+  }, [events, genreFilter, getStatus, searchTerm, statusFilter])
 
   const timedEvents = useMemo(
     () => statusFilteredEvents.filter((event) => !event.all_day),
@@ -528,9 +568,48 @@ export default function Home() {
             {errorMessage}
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-            <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
-              <div className="flex flex-col gap-4">
+          <>
+            <div className="mb-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex-1">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                    Buscar blocos
+                  </p>
+                  <input
+                    type="search"
+                    placeholder="Procure pelo nome do bloco"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  />
+                </div>
+                <div className="w-full lg:w-60">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                    Gênero
+                  </p>
+                  <select
+                    value={genreFilter}
+                    onChange={(event) => setGenreFilter(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    disabled={genreOptions.length === 0}
+                  >
+                    <option value="all">Todos os gêneros</option>
+                    {genreOptions.length === 0 ? (
+                      <option value="empty">Sem gêneros cadastrados</option>
+                    ) : (
+                      genreOptions.map((genre) => (
+                        <option key={genre} value={genre}>
+                          {genre}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
+              <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
+                <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Navegação
@@ -1090,19 +1169,19 @@ export default function Home() {
                         <p>
                           Eventos no período:{" "}
                           <span className="font-semibold text-foreground">
-                            {events.length}
+                            {listFilteredEvents.length}
                           </span>
                         </p>
                         <p>
                           Com horário:{" "}
                           <span className="font-semibold text-foreground">
-                            {timedEvents.length}
+                            {listTimedEvents.length}
                           </span>
                         </p>
                         <p>
                           A divulgar:{" "}
                           <span className="font-semibold text-foreground">
-                            {undeterminedEvents.length}
+                            {listUndeterminedEvents.length}
                           </span>
                         </p>
                       </div>
@@ -1118,9 +1197,10 @@ export default function Home() {
                     </div>
                   </>
                 )}
-              </div>
-            </aside>
-          </div>
+                </div>
+              </aside>
+            </div>
+          </>
         )}
       </main>
 
