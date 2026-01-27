@@ -157,11 +157,13 @@ body {
 
 .rbc-day-bg.is-selected-day {
   background: color-mix(in srgb, var(--primary) 16%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
 .rbc-header.is-selected-day {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
   color: var(--foreground);
+  box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--primary) 65%, transparent);
 }
 
 .rbc-month-row + .rbc-month-row {

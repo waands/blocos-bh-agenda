@@ -81,7 +81,10 @@ export default function Home() {
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
-  const [selectedDay, setSelectedDay] = useState<Date>(new Date())
+  const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "marked" | "maybe" | "going" | "sure" | "none"
+  >("all")
   const hasAutoNavigated = useRef(false)
 
   useEffect(() => {
@@ -161,6 +164,11 @@ export default function Home() {
   }, [calendarDate])
 
   useEffect(() => {
+    if (view !== "calendar") return
+    setCalendarJumpDate(calendarDate.toISOString().slice(0, 10))
+  }, [calendarDate, view])
+
+  useEffect(() => {
     const fetchEvents = async (range: DateRange) => {
       try {
         setIsLoading(true)
@@ -217,28 +225,41 @@ export default function Home() {
     setDateRange({ start, end })
   }, [listEnd, listStart, view])
 
+  const statusFilteredEvents = useMemo(() => {
+    if (statusFilter === "all") return events
+
+    return events.filter((event) => {
+      const status = getStatus(event.id)
+      if (statusFilter === "marked") {
+        return status === "maybe" || status === "going" || status === "sure"
+      }
+      if (statusFilter === "none") return status === null
+      return status === statusFilter
+    })
+  }, [events, getStatus, statusFilter])
+
   const timedEvents = useMemo(
-    () => events.filter((event) => !event.all_day),
-    [events]
+    () => statusFilteredEvents.filter((event) => !event.all_day),
+    [statusFilteredEvents]
   )
   const undeterminedEvents = useMemo(
-    () => events.filter((event) => event.all_day),
-    [events]
+    () => statusFilteredEvents.filter((event) => event.all_day),
+    [statusFilteredEvents]
   )
 
   const listFilteredEvents = useMemo(() => {
-    if (!listStart && !listEnd) return events
+    if (!listStart && !listEnd) return statusFilteredEvents
 
     const startDate = listStart ? new Date(`${listStart}T00:00:00-03:00`) : null
     const endDate = listEnd ? new Date(`${listEnd}T23:59:59-03:00`) : null
 
-    return events.filter((event) => {
+    return statusFilteredEvents.filter((event) => {
       const eventDate = new Date(event.starts_at)
       if (startDate && eventDate < startDate) return false
       if (endDate && eventDate > endDate) return false
       return true
     })
-  }, [events, listEnd, listStart])
+  }, [listEnd, listStart, statusFilteredEvents])
 
   const listTimedEvents = useMemo(
     () => listFilteredEvents.filter((event) => !event.all_day),
@@ -359,21 +380,21 @@ export default function Home() {
   }
 
   const selectedDayEvents = useMemo(() => {
-    const filtered = events.filter((event) =>
+    const filtered = statusFilteredEvents.filter((event) =>
       isSameDay(new Date(event.starts_at), selectedDay)
     )
     return filtered.sort(
       (a, b) =>
         new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
     )
-  }, [events, selectedDay])
+  }, [selectedDay, statusFilteredEvents])
 
   const selectedDayLabel = useMemo(
     () => format(selectedDay, "d 'de' MMMM", { locale: ptBR }),
     [selectedDay]
   )
 
-  const calendarEvents: CalendarEvent[] = events.map((event) => {
+  const calendarEvents: CalendarEvent[] = statusFilteredEvents.map((event) => {
     const startsAt = new Date(event.starts_at)
     const endsAt = event.ends_at
       ? new Date(event.ends_at)
@@ -507,7 +528,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-            <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
+            <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -653,6 +674,62 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                    Filtros
+                  </p>
+                  <div className="mt-3 space-y-3 text-sm">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Status
+                      </p>
+                      <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                          setStatusFilter(
+                            event.target.value as
+                              | "all"
+                              | "marked"
+                              | "maybe"
+                              | "going"
+                              | "sure"
+                              | "none"
+                          )
+                        }
+                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        <option value="all">Todos</option>
+                        <option value="marked">Marcados</option>
+                        <option value="maybe">Talvez</option>
+                        <option value="going">Vou</option>
+                        <option value="sure">Certeza</option>
+                        <option value="none">Sem status</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Gênero
+                      </p>
+                      <select
+                        disabled
+                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
+                      >
+                        <option>Em breve</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Bairro
+                      </p>
+                      <select
+                        disabled
+                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
+                      >
+                        <option>Em breve</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             </aside>
             {view === "calendar" ? (
@@ -889,6 +966,10 @@ export default function Home() {
                             <EventDetailsSheet
                               key={event.id}
                               event={event}
+                              status={getStatus(event.id)}
+                              onStatusChange={(status) =>
+                                setStatus(event.id, status)
+                              }
                               trigger={
                                 <button
                                   type="button"
