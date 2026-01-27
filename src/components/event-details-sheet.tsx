@@ -64,7 +64,7 @@ export function EventDetailsSheet({
     const endValue = event.ends_at
       ? event.ends_at
       : new Date(
-          new Date(event.starts_at).getTime() + 180 * 60 * 1000
+          new Date(event.starts_at).getTime() + 300 * 60 * 1000
         ).toISOString()
 
     return `${startLabel} até ${formatDateTime(endValue)}`
