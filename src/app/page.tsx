@@ -7,6 +7,7 @@ import {
   addWeeks,
   format,
   getDay,
+  isSameDay,
   parse,
   startOfDay,
   startOfMonth,
@@ -80,6 +81,9 @@ export default function Home() {
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
+  const [selectedDay, setSelectedDay] = useState<Date>(() =>
+    startOfDay(new Date())
+  )
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -99,6 +103,10 @@ export default function Home() {
     }
     setCalendarDate(addWeeks(calendarDate, amount))
   }
+
+  useEffect(() => {
+    setSelectedDay(startOfDay(calendarDate))
+  }, [calendarDate])
 
   useEffect(() => {
     const fetchEvents = async (range: DateRange) => {
@@ -217,16 +225,51 @@ export default function Home() {
     return `${formatter.format(start)} – ${formatter.format(end)}`
   }, [calendarDate, calendarView, dateRange])
 
-  const colorPalette = [
-    "#ff6f00",
-    "#ff4081",
-    "#ffb300",
-    "#00bfae",
-    "#3d5afe",
-    "#7c4dff",
-    "#26c6da",
-    "#ffa000",
-  ]
+  const statusColors = {
+    maybe: {
+      background: "#fef3c7",
+      border: "#f59e0b",
+      text: "#92400e",
+    },
+    going: {
+      background: "#dbeafe",
+      border: "#3b82f6",
+      text: "#1e3a8a",
+    },
+    sure: {
+      background: "#dcfce7",
+      border: "#22c55e",
+      text: "#14532d",
+    },
+    default: {
+      background: "#e2e8f0",
+      border: "#94a3b8",
+      text: "#334155",
+    },
+  }
+
+  const getEventColor = (event: BaseEvent) => {
+    const status = getStatus(event.id)
+    if (status === "maybe") return statusColors.maybe
+    if (status === "going") return statusColors.going
+    if (status === "sure") return statusColors.sure
+    return statusColors.default
+  }
+
+  const selectedDayEvents = useMemo(() => {
+    const filtered = events.filter((event) =>
+      isSameDay(new Date(event.starts_at), selectedDay)
+    )
+    return filtered.sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+    )
+  }, [events, selectedDay])
+
+  const selectedDayLabel = useMemo(
+    () => format(selectedDay, "d 'de' MMMM", { locale: ptBR }),
+    [selectedDay]
+  )
 
   const calendarEvents: CalendarEvent[] = events
     .filter((event) => !event.all_day)
@@ -536,6 +579,10 @@ export default function Home() {
                       )
                       setDateRange(normalized)
                     }}
+                    selectable
+                    onSelectSlot={(slotInfo) => {
+                      setSelectedDay(startOfDay(slotInfo.start))
+                    }}
                     messages={{
                       today: "Hoje",
                       previous: "Anterior",
@@ -550,15 +597,25 @@ export default function Home() {
                       noEventsInRange: "Nenhum evento no período.",
                       showMore: (total) => `mais +${total}`,
                     }}
+                    dayPropGetter={(date) => {
+                      if (isSameDay(date, selectedDay)) {
+                        return { className: "is-selected-day" }
+                      }
+                      return {}
+                    }}
+                    headerPropGetter={(date) => {
+                      if (isSameDay(date, selectedDay)) {
+                        return { className: "is-selected-day" }
+                      }
+                      return {}
+                    }}
                     eventPropGetter={(event) => {
-                      const colorIndex =
-                        event.title.length % colorPalette.length
-                      const color = colorPalette[colorIndex]
+                      const color = getEventColor(event.resource)
                       return {
                         style: {
-                          backgroundColor: color,
-                          borderColor: color,
-                          color: "#fff",
+                          backgroundColor: color.background,
+                          border: `1px solid ${color.border}`,
+                          color: color.text,
                         },
                       }
                     }}
@@ -567,6 +624,7 @@ export default function Home() {
                       if (found) {
                         setSelectedEvent(found)
                         setIsSheetOpen(true)
+                        setSelectedDay(startOfDay(event.start))
                       }
                     }}
                     style={{ height: "100%" }}
@@ -618,57 +676,146 @@ export default function Home() {
             )}
             <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
               <div className="flex flex-col gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Resumo
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                    <p>
-                      Eventos no período:{" "}
-                      <span className="font-semibold text-foreground">
-                        {events.length}
-                      </span>
-                    </p>
-                    <p>
-                      Com horário:{" "}
-                      <span className="font-semibold text-foreground">
-                        {timedEvents.length}
-                      </span>
-                    </p>
-                    <p>
-                      A divulgar:{" "}
-                      <span className="font-semibold text-foreground">
-                        {undeterminedEvents.length}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Paleta
-                  </p>
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    {colorPalette.map((color) => (
-                      <div
-                        key={color}
-                        className="h-6 rounded-md border border-border"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Cores vibrantes para destacar blocos e horários.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">
-                    Dica rápida
-                  </p>
-                  <p className="mt-1">
-                    Use o filtro do menu esquerdo para ajustar o período da
-                    lista ou pular para uma data específica no calendário.
-                  </p>
-                </div>
+                {view === "calendar" ? (
+                  <>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                          Selecionado
+                        </p>
+                        <button
+                          type="button"
+                          className="rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent/40"
+                          onClick={() => {
+                            setView("calendar")
+                            setCalendarView("day")
+                            setCalendarDate(selectedDay)
+                          }}
+                        >
+                          Ver dia
+                        </button>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-foreground">
+                        {selectedDayLabel}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {selectedDayEvents.length} eventos
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {selectedDayEvents.length > 0 ? (
+                        selectedDayEvents.map((event) => {
+                          const color = getEventColor(event)
+                          const startLabel = event.all_day
+                            ? "Horário a divulgar"
+                            : new Intl.DateTimeFormat("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }).format(new Date(event.starts_at))
+                          return (
+                            <EventDetailsSheet
+                              key={event.id}
+                              event={event}
+                              trigger={
+                                <button
+                                  type="button"
+                                  className="flex w-full items-start gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-left text-xs hover:border-primary/40 hover:bg-accent/30"
+                                >
+                                  <span
+                                    className="mt-1 h-2.5 w-2.5 rounded-full border"
+                                    style={{
+                                      backgroundColor: color.background,
+                                      borderColor: color.border,
+                                    }}
+                                  />
+                                  <span className="flex flex-1 flex-col gap-1">
+                                    <span className="text-sm font-semibold text-foreground">
+                                      {event.title}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {startLabel}
+                                      {event.location
+                                        ? ` · ${event.location}`
+                                        : ""}
+                                    </span>
+                                  </span>
+                                </button>
+                              }
+                            />
+                          )
+                        })
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Nenhum evento selecionado para este dia.
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                        Status
+                      </p>
+                      <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                        {[
+                          { label: "Talvez", color: statusColors.maybe },
+                          { label: "Vou", color: statusColors.going },
+                          { label: "Certeza", color: statusColors.sure },
+                          { label: "Sem status", color: statusColors.default },
+                        ].map((item) => (
+                          <div
+                            key={item.label}
+                            className="flex items-center gap-2"
+                          >
+                            <span
+                              className="h-3 w-3 rounded-full border"
+                              style={{
+                                backgroundColor: item.color.background,
+                                borderColor: item.color.border,
+                              }}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                        Resumo
+                      </p>
+                      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                        <p>
+                          Eventos no período:{" "}
+                          <span className="font-semibold text-foreground">
+                            {events.length}
+                          </span>
+                        </p>
+                        <p>
+                          Com horário:{" "}
+                          <span className="font-semibold text-foreground">
+                            {timedEvents.length}
+                          </span>
+                        </p>
+                        <p>
+                          A divulgar:{" "}
+                          <span className="font-semibold text-foreground">
+                            {undeterminedEvents.length}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+                      <p className="font-semibold text-foreground">
+                        Dica rápida
+                      </p>
+                      <p className="mt-1">
+                        Use o filtro do menu esquerdo para ajustar o período da
+                        lista ou pular para uma data específica no calendário.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </aside>
           </div>
