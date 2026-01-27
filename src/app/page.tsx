@@ -88,7 +88,7 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "marked" | "maybe" | "going" | "sure" | "none"
+    "all" | "marked" | "maybe" | "going" | "sure" | "not_going" | "none"
   >("all")
   const [timeFilter, setTimeFilter] = useState<
     "all" | "timed" | "undetermined"
@@ -206,7 +206,9 @@ export default function Home() {
 
         const { data, error } = await supabaseClient
           .from("events_base")
-          .select("id,title,starts_at,ends_at,location,description,all_day")
+          .select(
+            "id,title,starts_at,ends_at,location,description,ritmos,tamanho_publico,lgbt,all_day"
+          )
           .or("is_active.is.null,is_active.eq.true")
           .gte("starts_at", range.start.toISOString())
           .lt("starts_at", range.end.toISOString())
@@ -268,24 +270,14 @@ export default function Home() {
     const normalizedSearch = normalizeText(searchTerm.trim())
 
     return events.filter((event) => {
-      if (statusFilter !== "all") {
-        const status = getStatus(event.id)
-        if (statusFilter === "marked") {
-          if (status !== "maybe" && status !== "going" && status !== "sure") {
-            return false
-          }
-        } else if (statusFilter === "none") {
-          if (status !== null) return false
-        } else if (status !== statusFilter) {
-          return false
-        }
-      }
-
-      if (
-        normalizedSearch &&
-        !normalizeText(event.title).includes(normalizedSearch)
-      ) {
-        return false
+      const status = getStatus(event.id)
+      if (statusFilter === "marked") {
+        return (
+          status === "maybe" ||
+          status === "going" ||
+          status === "sure" ||
+          status === "not_going"
+        )
       }
 
       return true
@@ -330,6 +322,17 @@ export default function Home() {
     () => listFilteredEvents.filter((event) => event.all_day),
     [listFilteredEvents]
   )
+  const personalEvents = useMemo(() => {
+    return events.filter((event) => {
+      const status = getStatus(event.id)
+      return (
+        status === "maybe" ||
+        status === "going" ||
+        status === "sure" ||
+        status === "not_going"
+      )
+    })
+  }, [events, getStatus])
 
   const rangeLabel = useMemo(() => {
     if (!dateRange) return "Semana atual"
@@ -757,9 +760,35 @@ export default function Home() {
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Amigos
                   </p>
-                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
-                    <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground">
-                      Nenhum amigo conectado ainda.
+                  <div className="mt-3 space-y-3 text-sm">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Status
+                      </p>
+                      <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                          setStatusFilter(
+                            event.target.value as
+                              | "all"
+                              | "marked"
+                              | "maybe"
+                              | "going"
+                              | "sure"
+                              | "not_going"
+                              | "none"
+                          )
+                        }
+                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        <option value="all">Todos</option>
+                        <option value="marked">Marcados</option>
+                        <option value="maybe">Estou pensando</option>
+                        <option value="going">Quero ir</option>
+                        <option value="sure">Certeza</option>
+                        <option value="not_going">Não vou</option>
+                        <option value="none">Sem status</option>
+                      </select>
                     </div>
                     <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
                       Em breve será possível comparar agendas por aqui.
@@ -914,6 +943,13 @@ export default function Home() {
                               borderStyle: "solid",
                               borderWidth: "2px",
                               boxShadow: `0 0 0 2px ${accent}, 0 0 12px ${accent}55`,
+                            }
+                          : status === "not_going"
+                          ? {
+                              borderStyle: "dashed",
+                              borderWidth: "1px",
+                              opacity: 0.45,
+                              filter: "grayscale(0.6)",
                             }
                           : {}
                       return {

@@ -40,6 +40,9 @@ type NormalizedEvent = {
   ends_at: string | null
   all_day: boolean
   location: string
+  ritmos: string
+  tamanho_publico: string
+  lgbt: string
 }
 
 const YEAR_ARG = "--year"
@@ -138,6 +141,9 @@ for (const row of parsedRows) {
     ends_at: null,
     all_day,
     location: row["LOCAL DA CONCETRAÇÃO"].trim(),
+    ritmos: row.RITMOS?.trim() ?? "",
+    tamanho_publico: row["TAMANHO PÚBLICO"]?.trim() ?? "",
+    lgbt: row.LGBT?.trim() ?? "",
   }
 
   normalized.push(event)
