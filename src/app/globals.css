@@ -1,6 +1,19 @@
 @import "tailwindcss";
 @import "react-big-calendar/lib/css/react-big-calendar.css";
 
+.rbc-month-view {
+  min-height: 700px;
+}
+
+.rbc-row-content {
+  min-height: 96px;
+}
+
+.rbc-event {
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
 :root {
   color-scheme: light;
   --background: #f8f9ff;
@@ -140,6 +153,15 @@ body {
 .rbc-day-bg + .rbc-day-bg,
 .rbc-header + .rbc-header {
   border-left: 1px solid var(--border);
+}
+
+.rbc-day-bg.is-selected-day {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.rbc-header.is-selected-day {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--foreground);
 }
 
 .rbc-month-row + .rbc-month-row {
