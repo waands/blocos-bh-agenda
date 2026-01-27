@@ -79,6 +79,102 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+.rbc-calendar {
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.rbc-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rbc-toolbar-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.rbc-btn-group button {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.rbc-btn-group button:hover {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  color: var(--accent-foreground);
+}
+
+.rbc-btn-group button.rbc-active {
+  background: var(--primary);
+  border-color: transparent;
+  color: var(--primary-foreground);
+}
+
+.rbc-month-view,
+.rbc-time-view {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.rbc-header {
+  background: color-mix(in srgb, var(--muted) 65%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0;
+  text-transform: uppercase;
+}
+
+.rbc-day-bg + .rbc-day-bg,
+.rbc-header + .rbc-header {
+  border-left: 1px solid var(--border);
+}
+
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid var(--border);
+}
+
+.rbc-today {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.rbc-event {
+  border-radius: 0.5rem;
+  border: none;
+  box-shadow: 0 6px 12px -10px rgba(15, 23, 42, 0.4);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+}
+
+.rbc-show-more {
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rbc-time-view .rbc-time-header-gutter,
+.rbc-time-view .rbc-time-gutter {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.rbc-timeslot-group {
+  border-bottom: 1px dashed color-mix(in srgb, var(--border) 75%, transparent);
+}
+
 .fc {
   --fc-border-color: var(--border);
   --fc-page-bg-color: transparent;
