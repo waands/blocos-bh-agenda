@@ -282,35 +282,79 @@ export default function Home() {
     return `${formatter.format(start)} – ${formatter.format(end)}`
   }, [calendarDate, calendarView, dateRange])
 
-  const statusColors = {
-    maybe: {
-      background: "#fef3c7",
-      border: "#f59e0b",
-      text: "#92400e",
-    },
-    going: {
-      background: "#dbeafe",
-      border: "#3b82f6",
-      text: "#1e3a8a",
-    },
-    sure: {
-      background: "#dcfce7",
-      border: "#22c55e",
-      text: "#14532d",
-    },
-    default: {
-      background: "#e2e8f0",
-      border: "#94a3b8",
-      text: "#334155",
-    },
+  type EventColor = {
+    background: string
+    border: string
+    text: string
   }
 
+  const defaultEventColor: EventColor = {
+    background: "#e2e8f0",
+    border: "#94a3b8",
+    text: "#1e293b",
+  }
+
+  const timeSlotColors = useMemo(() => {
+    const slotMap = new Map<string, BaseEvent[]>()
+
+    events.forEach((event) => {
+      if (event.all_day) return
+      const startsAt = new Date(event.starts_at)
+      if (Number.isNaN(startsAt.getTime())) return
+      const hours = String(startsAt.getHours()).padStart(2, "0")
+      const minutes = String(startsAt.getMinutes()).padStart(2, "0")
+      const key = `${hours}:${minutes}`
+      const existing = slotMap.get(key)
+      if (existing) {
+        existing.push(event)
+      } else {
+        slotMap.set(key, [event])
+      }
+    })
+
+    const slotEntries = Array.from(slotMap.entries()).sort((a, b) => {
+      const [aHours, aMinutes] = a[0].split(":").map(Number)
+      const [bHours, bMinutes] = b[0].split(":").map(Number)
+      return aHours * 60 + aMinutes - (bHours * 60 + bMinutes)
+    })
+
+    const colorMap = new Map<string, EventColor>()
+    const minLightness = 44
+    const maxLightness = 72
+
+    slotEntries.forEach(([_, slotEvents], slotIndex) => {
+      const hue = (slotIndex * 137.5 + 24) % 360
+      const sortedEvents = [...slotEvents].sort((a, b) => {
+        const startDiff =
+          new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+        if (startDiff !== 0) return startDiff
+        const titleDiff = a.title.localeCompare(b.title)
+        if (titleDiff !== 0) return titleDiff
+        return a.id.localeCompare(b.id)
+      })
+      const step = (maxLightness - minLightness) / (sortedEvents.length + 1)
+
+      sortedEvents.forEach((event, index) => {
+        const lightness = minLightness + step * (index + 1)
+        const borderLightness = Math.max(28, lightness - 12)
+        const background = `hsl(${hue.toFixed(1)} 70% ${lightness.toFixed(
+          1
+        )}%)`
+        const border = `hsl(${hue.toFixed(1)} 72% ${borderLightness.toFixed(
+          1
+        )}%)`
+        const text = lightness > 60 ? "#0f172a" : "#f8fafc"
+
+        colorMap.set(event.id, { background, border, text })
+      })
+    })
+
+    return colorMap
+  }, [events])
+
   const getEventColor = (event: BaseEvent) => {
-    const status = getStatus(event.id)
-    if (status === "maybe") return statusColors.maybe
-    if (status === "going") return statusColors.going
-    if (status === "sure") return statusColors.sure
-    return statusColors.default
+    if (event.all_day) return defaultEventColor
+    return timeSlotColors.get(event.id) ?? defaultEventColor
   }
 
   const selectedDayEvents = useMemo(() => {
@@ -739,9 +783,9 @@ export default function Home() {
                       const color = getEventColor(event.resource)
                       return {
                         style: {
-                          backgroundColor: color,
-                          borderColor: color,
-                          color: "#fff",
+                          backgroundColor: color.background,
+                          borderColor: color.border,
+                          color: color.text,
                           fontSize: "0.85rem",
                           lineHeight: "1.2rem",
                         },
@@ -880,30 +924,12 @@ export default function Home() {
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                        Status
+                        Cores
                       </p>
-                      <div className="mt-3 space-y-2 text-xs text-muted-foreground">
-                        {[
-                          { label: "Talvez", color: statusColors.maybe },
-                          { label: "Vou", color: statusColors.going },
-                          { label: "Certeza", color: statusColors.sure },
-                          { label: "Sem status", color: statusColors.default },
-                        ].map((item) => (
-                          <div
-                            key={item.label}
-                            className="flex items-center gap-2"
-                          >
-                            <span
-                              className="h-3 w-3 rounded-full border"
-                              style={{
-                                backgroundColor: item.color.background,
-                                borderColor: item.color.border,
-                              }}
-                            />
-                            <span>{item.label}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        Eventos no mesmo horário recebem tons diferentes do
+                        mesmo matiz para facilitar a leitura.
+                      </p>
                     </div>
                   </>
                 ) : (
