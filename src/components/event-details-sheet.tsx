@@ -14,9 +14,10 @@ import {
 import type { BaseEvent } from "@/lib/eventTypes"
 
 const statusOptions = [
-  { value: "maybe", label: "Talvez" },
-  { value: "going", label: "Vou" },
+  { value: "maybe", label: "Estou pensando" },
+  { value: "going", label: "Quero ir" },
   { value: "sure", label: "Certeza" },
+  { value: "not_going", label: "Não vou" },
 ] as const
 
 type StatusValue = (typeof statusOptions)[number]["value"]
@@ -54,10 +55,19 @@ export function EventDetailsSheet({
   onStatusChange,
 }: EventDetailsSheetProps) {
   const [status, setStatus] = useState<StatusValue | null>(statusProp ?? null)
+  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "error">(
+    "idle"
+  )
 
   useEffect(() => {
     setStatus(statusProp ?? null)
   }, [event.id, statusProp])
+
+  useEffect(() => {
+    if (copyFeedback === "idle") return
+    const timeout = window.setTimeout(() => setCopyFeedback("idle"), 2000)
+    return () => window.clearTimeout(timeout)
+  }, [copyFeedback])
 
   const scheduleLabel = useMemo(() => {
     if (event.all_day) {
@@ -74,6 +84,19 @@ export function EventDetailsSheet({
     return `${startLabel} até ${formatDateTime(endValue)}`
   }, [event])
 
+  const locationLabel = event.location?.trim() ?? ""
+  const hasLocation = Boolean(locationLabel)
+  const mapUrl = hasLocation
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        locationLabel
+      )}`
+    : ""
+
+  const rhythms = (event.ritmos ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {trigger ? <SheetTrigger asChild>{trigger}</SheetTrigger> : null}
@@ -83,17 +106,72 @@ export function EventDetailsSheet({
           <SheetDescription>{scheduleLabel}</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-4 py-6 text-sm">
-          <div>
+          <div className="space-y-2">
             <p className="text-muted-foreground">Local</p>
             <p className="font-medium text-foreground">
-              {event.location ?? "Local a confirmar"}
+              {hasLocation ? locationLabel : "Local a confirmar"}
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!hasLocation}
+                onClick={async () => {
+                  if (!hasLocation) return
+                  try {
+                    await navigator.clipboard.writeText(locationLabel)
+                    setCopyFeedback("copied")
+                  } catch {
+                    setCopyFeedback("error")
+                  }
+                }}
+              >
+                {copyFeedback === "copied"
+                  ? "Endereço copiado"
+                  : copyFeedback === "error"
+                  ? "Falha ao copiar"
+                  : "Copiar endereço"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!hasLocation}
+                onClick={() => {
+                  if (!hasLocation) return
+                  window.open(mapUrl, "_blank", "noopener,noreferrer")
+                }}
+              >
+                Abrir no mapa
+              </Button>
+            </div>
           </div>
-          <div>
+          <div className="space-y-2">
             <p className="text-muted-foreground">Detalhes</p>
             <p className="text-foreground">
-              {event.description ?? "Sem descricao."}
+              {event.description ?? "Sem descrição."}
             </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-muted-foreground">Gêneros</p>
+              <p className="text-foreground">
+                {rhythms.length > 0 ? rhythms.join(", ") : "Não informado"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Tamanho do público</p>
+              <p className="text-foreground">
+                {event.tamanho_publico?.trim() || "Não informado"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">LGBT</p>
+              <p className="text-foreground">
+                {event.lgbt?.trim() || "Não informado"}
+              </p>
+            </div>
           </div>
         </div>
         <div className="border-t border-border px-4 py-4">

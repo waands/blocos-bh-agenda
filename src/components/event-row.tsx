@@ -25,8 +25,8 @@ function formatEventSummary(event: BaseEvent) {
 
 type EventRowProps = {
   event: BaseEvent
-  status: "maybe" | "going" | "sure" | null
-  onStatusChange: (status: "maybe" | "going" | "sure") => void
+  status: "maybe" | "going" | "sure" | "not_going" | null
+  onStatusChange: (status: "maybe" | "going" | "sure" | "not_going") => void
 }
 
 export function EventRow({ event, status, onStatusChange }: EventRowProps) {

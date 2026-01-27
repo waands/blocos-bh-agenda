@@ -83,7 +83,7 @@ export default function Home() {
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "marked" | "maybe" | "going" | "sure" | "none"
+    "all" | "marked" | "maybe" | "going" | "sure" | "not_going" | "none"
   >("all")
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
   const hasAutoNavigated = useRef(false)
@@ -177,7 +177,9 @@ export default function Home() {
 
         const { data, error } = await supabaseClient
           .from("events_base")
-          .select("id,title,starts_at,ends_at,location,description,all_day")
+          .select(
+            "id,title,starts_at,ends_at,location,description,ritmos,tamanho_publico,lgbt,all_day"
+          )
           .or("is_active.is.null,is_active.eq.true")
           .gte("starts_at", range.start.toISOString())
           .lt("starts_at", range.end.toISOString())
@@ -232,7 +234,12 @@ export default function Home() {
     return events.filter((event) => {
       const status = getStatus(event.id)
       if (statusFilter === "marked") {
-        return status === "maybe" || status === "going" || status === "sure"
+        return (
+          status === "maybe" ||
+          status === "going" ||
+          status === "sure" ||
+          status === "not_going"
+        )
       }
       if (statusFilter === "none") return status === null
       return status === statusFilter
@@ -273,7 +280,12 @@ export default function Home() {
   const personalEvents = useMemo(() => {
     return events.filter((event) => {
       const status = getStatus(event.id)
-      return status === "maybe" || status === "going" || status === "sure"
+      return (
+        status === "maybe" ||
+        status === "going" ||
+        status === "sure" ||
+        status === "not_going"
+      )
     })
   }, [events, getStatus])
 
@@ -694,6 +706,7 @@ export default function Home() {
                               | "maybe"
                               | "going"
                               | "sure"
+                              | "not_going"
                               | "none"
                           )
                         }
@@ -701,9 +714,10 @@ export default function Home() {
                       >
                         <option value="all">Todos</option>
                         <option value="marked">Marcados</option>
-                        <option value="maybe">Talvez</option>
-                        <option value="going">Vou</option>
+                        <option value="maybe">Estou pensando</option>
+                        <option value="going">Quero ir</option>
                         <option value="sure">Certeza</option>
+                        <option value="not_going">Não vou</option>
                         <option value="none">Sem status</option>
                       </select>
                     </div>
@@ -879,6 +893,13 @@ export default function Home() {
                               borderStyle: "solid",
                               borderWidth: "2px",
                               boxShadow: `0 0 0 2px ${accent}, 0 0 12px ${accent}55`,
+                            }
+                          : status === "not_going"
+                          ? {
+                              borderStyle: "dashed",
+                              borderWidth: "1px",
+                              opacity: 0.45,
+                              filter: "grayscale(0.6)",
                             }
                           : {}
                       return {

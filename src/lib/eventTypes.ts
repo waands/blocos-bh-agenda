@@ -5,5 +5,8 @@ export type BaseEvent = {
   ends_at: string | null
   location?: string | null
   description?: string | null
+  ritmos?: string | null
+  tamanho_publico?: string | null
+  lgbt?: string | null
   all_day: boolean
 }
