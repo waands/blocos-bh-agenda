@@ -25,12 +25,16 @@ function formatEventSummary(event: BaseEvent) {
 
 type EventRowProps = {
   event: BaseEvent
+  status: "maybe" | "going" | "sure" | null
+  onStatusChange: (status: "maybe" | "going" | "sure") => void
 }
 
-export function EventRow({ event }: EventRowProps) {
+export function EventRow({ event, status, onStatusChange }: EventRowProps) {
   return (
     <EventDetailsSheet
       event={event}
+      status={status}
+      onStatusChange={onStatusChange}
       trigger={
         <button
           type="button"

@@ -26,6 +26,8 @@ type EventDetailsSheetProps = {
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  status?: StatusValue | null
+  onStatusChange?: (status: StatusValue) => void
 }
 
 function formatDateTime(dateValue: string) {
@@ -48,12 +50,14 @@ export function EventDetailsSheet({
   trigger,
   open,
   onOpenChange,
+  status: statusProp,
+  onStatusChange,
 }: EventDetailsSheetProps) {
-  const [status, setStatus] = useState<StatusValue | null>(null)
+  const [status, setStatus] = useState<StatusValue | null>(statusProp ?? null)
 
   useEffect(() => {
-    setStatus(null)
-  }, [event.id])
+    setStatus(statusProp ?? null)
+  }, [event.id, statusProp])
 
   const scheduleLabel = useMemo(() => {
     if (event.all_day) {
@@ -103,7 +107,10 @@ export function EventDetailsSheet({
                 type="button"
                 variant={status === option.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatus(option.value)}
+                onClick={() => {
+                  setStatus(option.value)
+                  onStatusChange?.(option.value)
+                }}
               >
                 {option.label}
               </Button>
