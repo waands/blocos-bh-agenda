@@ -8,6 +8,7 @@ import {
   format,
   getDay,
   isSameDay,
+  isWithinInterval,
   parse,
   startOfDay,
   startOfMonth,
@@ -16,6 +17,8 @@ import {
   endOfWeek,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
@@ -68,6 +71,7 @@ const getCalendarRange = (view: View, date: Date): DateRange => {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams()
   const { view, setView, setAutoView } = useViewStore()
   const [events, setEvents] = useState<BaseEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -82,6 +86,7 @@ export default function Home() {
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
+  const [searchTerm, setSearchTerm] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<
     "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
@@ -89,7 +94,36 @@ export default function Home() {
     "all" | "timed" | "undetermined"
   >("all")
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
-  const hasAutoNavigated = useRef(false)
+  const autoJumpInFlight = useRef(false)
+  const lastAutoJumpRange = useRef<string | null>(null)
+
+  const normalizeText = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+
+  useEffect(() => {
+    const viewParam = searchParams.get("view")
+    if (viewParam === "calendar" || viewParam === "list") {
+      setView(viewParam)
+    }
+
+    const statusParam = searchParams.get("status")
+    const allowedStatuses = new Set([
+      "all",
+      "marked",
+      "maybe",
+      "going",
+      "sure",
+      "none",
+    ])
+    if (statusParam && allowedStatuses.has(statusParam)) {
+      setStatusFilter(
+        statusParam as "all" | "marked" | "maybe" | "going" | "sure" | "none"
+      )
+    }
+  }, [searchParams, setView, setStatusFilter])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -131,23 +165,6 @@ export default function Home() {
     setDateRange(range)
   }, [calendarDate, calendarView, view])
 
-  useEffect(() => {
-    if (view !== "calendar") return
-    if (hasAutoNavigated.current) return
-    if (events.length === 0) return
-
-    const sorted = [...events].sort(
-      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
-    )
-    const first = sorted[0]
-    if (first) {
-      const targetDate = new Date(first.starts_at)
-      setCalendarDate(targetDate)
-      setCalendarView("month")
-      setCalendarJumpDate(targetDate.toISOString().slice(0, 10))
-      hasAutoNavigated.current = true
-    }
-  }, [events, view])
 
   useEffect(() => {
     if (view !== "list") return
@@ -196,10 +213,19 @@ export default function Home() {
       }
     }
 
-    if (dateRange) {
-      void fetchEvents(dateRange)
-    }
-  }, [dateRange])
+    const now = new Date()
+    const defaultYear = calendarDate.getFullYear()
+    const start =
+      listStart !== ""
+        ? new Date(`${listStart}T00:00:00-03:00`)
+        : new Date(defaultYear, 0, 1)
+    const end =
+      listEnd !== ""
+        ? new Date(`${listEnd}T23:59:59-03:00`)
+        : new Date(defaultYear + 1, 0, 1)
+
+    void fetchEvents({ start, end })
+  }, [calendarDate, listEnd, listStart])
 
   const normalizeRange = (range: DateRange | Date[] | { start: Date; end: Date }) => {
     if (Array.isArray(range)) {
@@ -230,17 +256,32 @@ export default function Home() {
   }, [listEnd, listStart, view])
 
   const statusFilteredEvents = useMemo(() => {
-    if (statusFilter === "all") return events
+    const normalizedSearch = normalizeText(searchTerm.trim())
 
     return events.filter((event) => {
-      const status = getStatus(event.id)
-      if (statusFilter === "marked") {
-        return status === "maybe" || status === "going" || status === "sure"
+      if (statusFilter !== "all") {
+        const status = getStatus(event.id)
+        if (statusFilter === "marked") {
+          if (status !== "maybe" && status !== "going" && status !== "sure") {
+            return false
+          }
+        } else if (statusFilter === "none") {
+          if (status !== null) return false
+        } else if (status !== statusFilter) {
+          return false
+        }
       }
-      if (statusFilter === "none") return status === null
-      return status === statusFilter
+
+      if (
+        normalizedSearch &&
+        !normalizeText(event.title).includes(normalizedSearch)
+      ) {
+        return false
+      }
+
+      return true
     })
-  }, [events, getStatus, statusFilter])
+  }, [events, getStatus, searchTerm, statusFilter])
 
   const timeFilteredEvents = useMemo(() => {
     if (timeFilter === "all") return statusFilteredEvents
@@ -280,12 +321,6 @@ export default function Home() {
     () => listFilteredEvents.filter((event) => event.all_day),
     [listFilteredEvents]
   )
-  const personalEvents = useMemo(() => {
-    return events.filter((event) => {
-      const status = getStatus(event.id)
-      return status === "maybe" || status === "going" || status === "sure"
-    })
-  }, [events, getStatus])
 
   const rangeLabel = useMemo(() => {
     if (!dateRange) return "Semana atual"
@@ -421,6 +456,75 @@ export default function Home() {
     }
   })
 
+  useEffect(() => {
+    if (view !== "calendar") return
+    if (!dateRange) return
+    if (searchTerm.trim() !== "") return
+    if (isLoading) return
+
+    const hasInRange = calendarEvents.some((event) =>
+      isWithinInterval(event.start, {
+        start: dateRange.start,
+        end: dateRange.end,
+      })
+    )
+    if (hasInRange) return
+
+    const rangeKey = `${dateRange.start.toISOString()}-${dateRange.end.toISOString()}`
+    if (lastAutoJumpRange.current === rangeKey) return
+    if (autoJumpInFlight.current) return
+
+    autoJumpInFlight.current = true
+    lastAutoJumpRange.current = rangeKey
+
+    const buildBaseQuery = () =>
+      supabaseClient
+        .from("events_base")
+        .select("starts_at")
+        .or("is_active.is.null,is_active.eq.true")
+
+    const jumpToClosestEvent = async () => {
+      const { data: nextData, error: nextError } = await buildBaseQuery()
+        .gte("starts_at", dateRange.start.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(1)
+
+      if (nextError) throw nextError
+
+      const next = nextData?.[0]
+      if (next?.starts_at) {
+        const targetDate = new Date(next.starts_at)
+        setCalendarDate(targetDate)
+        setCalendarView("month")
+        setCalendarJumpDate(format(targetDate, "yyyy-MM-dd"))
+        return
+      }
+
+      const { data: prevData, error: prevError } = await buildBaseQuery()
+        .lt("starts_at", dateRange.start.toISOString())
+        .order("starts_at", { ascending: false })
+        .limit(1)
+
+      if (prevError) throw prevError
+
+      const prev = prevData?.[0]
+      if (prev?.starts_at) {
+        const targetDate = new Date(prev.starts_at)
+        setCalendarDate(targetDate)
+        setCalendarView("month")
+        setCalendarJumpDate(format(targetDate, "yyyy-MM-dd"))
+      }
+    }
+
+    void jumpToClosestEvent()
+      .catch((err) => {
+        console.error("Auto-jump failed", err)
+      })
+      .finally(() => {
+        autoJumpInFlight.current = false
+      })
+  }, [calendarEvents, dateRange, isLoading, searchTerm, view])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/60">
       <header className="border-b border-border/70 bg-background/90 backdrop-blur">
@@ -437,102 +541,39 @@ export default function Home() {
               acompanhe horários com duração padrão de 5 horas por bloco.
             </p>
           </div>
-          <ToggleGroup
-            type="single"
-            value={view}
-            onValueChange={(value) => {
-              if (value) setView(value as ViewMode)
-            }}
-            className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
-          >
-            <ToggleGroupItem
-              value="calendar"
-              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/minha-agenda"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
             >
-              Calendário
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="list"
-              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              Minha agenda
+            </Link>
+            <ToggleGroup
+              type="single"
+              value={view}
+              onValueChange={(value) => {
+                if (value) setView(value as ViewMode)
+              }}
+              className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
             >
-              Lista
-            </ToggleGroupItem>
-          </ToggleGroup>
+              <ToggleGroupItem
+                value="calendar"
+                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              >
+                Calendário
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="list"
+                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              >
+                Lista
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-none px-4 py-6">
-        <section className="mb-6 rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                Sua agenda pessoal
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-foreground">
-                Veja o que você quer curtir e combine com seus amigos
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Marque blocos como talvez, vou ou certeza e compare com a
-                agenda da sua galera para decidir onde encontrar todo mundo.
-                Quem estiver logado pode gerar uma página pública para
-                compartilhar.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
-                onClick={() => setView("calendar")}
-              >
-                Abrir calendário
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
-                onClick={() => setView("list")}
-              >
-                Ir para lista
-              </button>
-            </div>
-          </div>
-          <div className="mt-6 border-t border-border/60 pt-4">
-            {personalEvents.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Seus blocos selecionados
-                </p>
-                <div className="divide-y divide-border/60">
-                  {personalEvents.slice(0, 6).map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex flex-col gap-1 py-3 text-sm"
-                    >
-                      <span className="font-medium text-foreground">
-                        {event.title}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {event.location ?? "Local a confirmar"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {personalEvents.length > 6 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Mostrando 6 de {personalEvents.length} blocos salvos.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <p>Nenhum bloco salvo ainda.</p>
-                <p>
-                  Use o calendário ou a lista para marcar o que você quer ver
-                  primeiro.
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
         {errorMessage ? (
           <div className="rounded-2xl border border-destructive/40 bg-background p-6 text-sm text-destructive">
             {errorMessage}
@@ -552,6 +593,37 @@ export default function Home() {
                     Ajuste os filtros para deixar só o que importa.
                   </p>
                 </div>
+          <>
+            <div className="mb-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex-1">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                    Buscar blocos
+                  </p>
+                  <div className="relative mt-2">
+                    <input
+                      type="search"
+                      placeholder="Procure pelo nome do bloco"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      className="h-10 w-full rounded-md border border-border bg-background px-3 pr-16 text-sm"
+                    />
+                    {searchTerm ? (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent/40"
+                      >
+                        Limpar
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
+              <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
+                <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Filtros principais
@@ -1047,19 +1119,19 @@ export default function Home() {
                         <p>
                           Eventos no período:{" "}
                           <span className="font-semibold text-foreground">
-                            {events.length}
+                            {listFilteredEvents.length}
                           </span>
                         </p>
                         <p>
                           Com horário:{" "}
                           <span className="font-semibold text-foreground">
-                            {timedEvents.length}
+                            {listTimedEvents.length}
                           </span>
                         </p>
                         <p>
                           A divulgar:{" "}
                           <span className="font-semibold text-foreground">
-                            {undeterminedEvents.length}
+                            {listUndeterminedEvents.length}
                           </span>
                         </p>
                       </div>
@@ -1075,9 +1147,10 @@ export default function Home() {
                     </div>
                   </>
                 )}
-              </div>
-            </aside>
-          </div>
+                </div>
+              </aside>
+            </div>
+          </>
         )}
       </main>
 
