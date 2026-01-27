@@ -15,6 +15,22 @@ const rowSchema = z.object({
   LGBT: z.string().optional().default(""),
 })
 
+function loadEnvFile(filename: string) {
+  const filePath = path.resolve(process.cwd(), filename)
+  if (!fs.existsSync(filePath)) return
+  const content = fs.readFileSync(filePath, "utf-8")
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith("#")) continue
+    const [key, ...rest] = trimmed.split("=")
+    if (!key) continue
+    const value = rest.join("=").replace(/^\"|\"$/g, "")
+    if (!process.env[key]) {
+      process.env[key] = value
+    }
+  }
+}
+
 type ParsedRow = z.infer<typeof rowSchema>
 
 type NormalizedEvent = {
@@ -38,6 +54,9 @@ const year =
 if (!Number.isInteger(year) || year < 2000 || year > 2100) {
   throw new Error(`Ano invalido: ${process.argv[argIndex + 1] ?? ""}`)
 }
+
+loadEnvFile(".env.local")
+loadEnvFile("chaves.env.local")
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -127,44 +146,51 @@ for (const row of parsedRows) {
 const startRange = `${year}-01-01T00:00:00-03:00`
 const endRange = `${year + 1}-01-01T00:00:00-03:00`
 
-const { data: existingRows, error: existingError } = await supabase
-  .from("events_base")
-  .select("id,title,starts_at,location")
-  .gte("starts_at", startRange)
-  .lt("starts_at", endRange)
+const run = async () => {
+  const { data: existingRows, error: existingError } = await supabase
+    .from("events_base")
+    .select("id,title,starts_at,location")
+    .gte("starts_at", startRange)
+    .lt("starts_at", endRange)
 
-if (existingError) {
-  throw existingError
-}
-
-const existingMap = new Map<string, { id: string }>()
-for (const row of existingRows ?? []) {
-  const key = `${row.title}|${row.starts_at}|${row.location}`
-  existingMap.set(key, { id: row.id })
-}
-
-let toInsert = 0
-let toUpdate = 0
-
-const payload = normalized.map((event) => {
-  const key = buildKey(event)
-  const existing = existingMap.get(key)
-  if (existing) {
-    toUpdate += 1
-    return { ...event, id: existing.id }
+  if (existingError) {
+    throw existingError
   }
-  toInsert += 1
-  return event
+
+  const existingMap = new Map<string, { id: string }>()
+  for (const row of existingRows ?? []) {
+    const key = `${row.title}|${row.starts_at}|${row.location}`
+    existingMap.set(key, { id: row.id })
+  }
+
+  let toInsert = 0
+  let toUpdate = 0
+
+  const payload = normalized.map((event) => {
+    const key = buildKey(event)
+    const existing = existingMap.get(key)
+    if (existing) {
+      toUpdate += 1
+      return { ...event, id: existing.id }
+    }
+    toInsert += 1
+    return event
+  })
+
+  if (payload.length > 0) {
+    const { error } = await supabase.from("events_base").upsert(payload)
+    if (error) {
+      throw error
+    }
+  }
+
+  console.log("Importacao concluida")
+  console.log(`Inseridos: ${toInsert}`)
+  console.log(`Atualizados: ${toUpdate}`)
+  console.log(`Ignorados: ${ignored}`)
+}
+
+run().catch((error) => {
+  console.error(error)
+  process.exit(1)
 })
-
-if (payload.length > 0) {
-  const { error } = await supabase.from("events_base").upsert(payload)
-  if (error) {
-    throw error
-  }
-}
-
-console.log("Importacao concluida")
-console.log(`Inseridos: ${toInsert}`)
-console.log(`Atualizados: ${toUpdate}`)
-console.log(`Ignorados: ${ignored}`)
