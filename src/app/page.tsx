@@ -81,6 +81,7 @@ export default function Home() {
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
+  const [selectedDay, setSelectedDay] = useState<Date>(new Date())
   const hasAutoNavigated = useRef(false)
 
   useEffect(() => {
