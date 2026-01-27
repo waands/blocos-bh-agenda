@@ -1,8 +1,5 @@
 @import "tailwindcss";
-@import "@fullcalendar/core/main.css";
-@import "@fullcalendar/daygrid/main.css";
-@import "@fullcalendar/timegrid/main.css";
-@import "@fullcalendar/list/main.css";
+@import "react-big-calendar/lib/css/react-big-calendar.css";
 
 :root {
   color-scheme: light;

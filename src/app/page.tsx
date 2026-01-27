@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import type { DatesSetArg } from "@fullcalendar/core"
-import ptBrLocale from "@/lib/fullcalendarLocalePtBr"
-import FullCalendar from "@fullcalendar/react"
-import dayGridPlugin from "@fullcalendar/daygrid"
-import interactionPlugin from "@fullcalendar/interaction"
-import scrollGridPlugin from "@fullcalendar/scrollgrid"
-import timeGridPlugin from "@fullcalendar/timegrid"
+import { useEffect, useMemo, useState } from "react"
+import { addDays, addMonths, addWeeks, format, getDay, parse, startOfWeek } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import {
+  Calendar as BigCalendar,
+  dateFnsLocalizer,
+  type View,
+} from "react-big-calendar"
 
 import { EventDetailsSheet } from "@/components/event-details-sheet"
 import { EventRow } from "@/components/event-row"
@@ -22,27 +22,56 @@ type DateRange = {
   end: Date
 }
 
+type CalendarEvent = {
+  id: string
+  title: string
+  start: Date
+  end: Date
+  allDay?: boolean
+  resource: BaseEvent
+}
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: (date) => startOfWeek(date, { locale: ptBR }),
+  getDay,
+  locales: { "pt-BR": ptBR },
+})
+
 export default function Home() {
   const { view, setView, setAutoView } = useViewStore()
-  const calendarRef = useRef<FullCalendar | null>(null)
   const [events, setEvents] = useState<BaseEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<BaseEvent | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
-  const initialFetchDone = useRef(false)
-  const lastRangeKey = useRef<string | null>(null)
   const { getStatus, setStatus } = useSync()
   const [listStart, setListStart] = useState<string>("")
   const [listEnd, setListEnd] = useState<string>("")
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
+  const [calendarView, setCalendarView] = useState<View>("week")
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date())
 
   useEffect(() => {
     if (typeof window === "undefined") return
     const isDesktop = window.innerWidth >= 1024
     setAutoView(isDesktop ? "calendar" : "list")
   }, [setAutoView])
+
+  const shiftCalendarDate = (direction: "prev" | "next") => {
+    const amount = direction === "prev" ? -1 : 1
+    if (calendarView === "month") {
+      setCalendarDate(addMonths(calendarDate, amount))
+      return
+    }
+    if (calendarView === "day") {
+      setCalendarDate(addDays(calendarDate, amount))
+      return
+    }
+    setCalendarDate(addWeeks(calendarDate, amount))
+  }
 
   useEffect(() => {
     const fetchEvents = async (range: DateRange) => {
@@ -73,29 +102,28 @@ export default function Home() {
     }
   }, [dateRange])
 
-  useEffect(() => {
-    if (initialFetchDone.current || dateRange) return
-
-    const now = new Date()
-    const day = now.getDay()
-    const mondayOffset = (day + 6) % 7
-    const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - mondayOffset)
-    startOfWeek.setHours(0, 0, 0, 0)
-
-    const endOfWeek = new Date(startOfWeek)
-    endOfWeek.setDate(startOfWeek.getDate() + 7)
-
-    initialFetchDone.current = true
-    setDateRange({ start: startOfWeek, end: endOfWeek })
-  }, [dateRange])
-
-  const handleDatesSet = (info: DatesSetArg) => {
-    const key = `${info.start.toISOString()}-${info.end.toISOString()}`
-    if (lastRangeKey.current === key) return
-    lastRangeKey.current = key
-    setDateRange({ start: info.start, end: info.end })
+  const normalizeRange = (range: DateRange | Date[] | { start: Date; end: Date }) => {
+    if (Array.isArray(range)) {
+      const start = range[0]
+      const end = range[range.length - 1]
+      return { start, end: addDays(end, 1) }
+    }
+    return { start: range.start, end: range.end }
   }
+
+  useEffect(() => {
+    if (view !== "list") return
+    const now = new Date()
+    const start =
+      listStart !== ""
+        ? new Date(`${listStart}T00:00:00-03:00`)
+        : new Date(now.getFullYear(), 0, 1)
+    const end =
+      listEnd !== ""
+        ? new Date(`${listEnd}T23:59:59-03:00`)
+        : new Date(now.getFullYear() + 1, 0, 1)
+    setDateRange({ start, end })
+  }, [listEnd, listStart, view])
 
   const timedEvents = useMemo(
     () => events.filter((event) => !event.all_day),
@@ -151,14 +179,13 @@ export default function Home() {
     "#ffa000",
   ]
 
-  const calendarEvents = events.map((event) => {
+  const calendarEvents: CalendarEvent[] = events
+    .filter((event) => !event.all_day)
+    .map((event) => {
     const startsAt = new Date(event.starts_at)
     const endsAt = event.ends_at
       ? new Date(event.ends_at)
-      : event.all_day
-        ? undefined
-        : new Date(startsAt.getTime() + 180 * 60 * 1000)
-    const colorIndex = event.title.length % colorPalette.length
+      : new Date(startsAt.getTime() + 180 * 60 * 1000)
 
     return {
       id: event.id,
@@ -166,8 +193,7 @@ export default function Home() {
       start: startsAt,
       end: endsAt,
       allDay: event.all_day,
-      backgroundColor: colorPalette[colorIndex],
-      borderColor: colorPalette[colorIndex],
+      resource: event,
     }
   })
 
@@ -228,7 +254,7 @@ export default function Home() {
                     <button
                       type="button"
                       className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => calendarRef.current?.getApi().today()}
+                      onClick={() => setCalendarDate(new Date())}
                     >
                       Hoje
                     </button>
@@ -238,7 +264,7 @@ export default function Home() {
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
                         onClick={() =>
                           view === "calendar"
-                            ? calendarRef.current?.getApi().prev()
+                            ? shiftCalendarDate("prev")
                             : setListStart((current) => {
                                 if (!current) return current
                                 const date = new Date(
@@ -256,7 +282,7 @@ export default function Home() {
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
                         onClick={() =>
                           view === "calendar"
-                            ? calendarRef.current?.getApi().next()
+                            ? shiftCalendarDate("next")
                             : setListStart((current) => {
                                 if (!current) return current
                                 const date = new Date(
@@ -280,18 +306,32 @@ export default function Home() {
                     <button
                       type="button"
                       className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() =>
+                      onClick={() => {
                         setView("calendar")
-                      }
+                        setCalendarView("month")
+                      }}
                     >
-                      Calendário
+                      Mês
                     </button>
                     <button
                       type="button"
                       className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => setView("list")}
+                      onClick={() => {
+                        setView("calendar")
+                        setCalendarView("week")
+                      }}
                     >
-                      Lista
+                      Semana
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
+                      onClick={() => {
+                        setView("calendar")
+                        setCalendarView("day")
+                      }}
+                    >
+                      Dia
                     </button>
                   </div>
                 </div>
@@ -313,7 +353,7 @@ export default function Home() {
                         const value = event.target.value
                         setCalendarJumpDate(value)
                         if (value) {
-                          calendarRef.current?.getApi().gotoDate(value)
+                          setCalendarDate(new Date(`${value}T00:00:00`))
                         }
                       }}
                       className="mt-3 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
@@ -363,44 +403,54 @@ export default function Home() {
                   </div>
                 ) : null}
                 <div className={isLoading ? "blur-sm" : ""}>
-                  <FullCalendar
-                    ref={calendarRef}
-                    plugins={[
-                      dayGridPlugin,
-                      timeGridPlugin,
-                      interactionPlugin,
-                      scrollGridPlugin,
-                    ]}
-                    locales={[ptBrLocale]}
-                    locale="pt-br"
-                    initialView="timeGridWeek"
-                    headerToolbar={{
-                      left: "prev,next today",
-                      center: "title",
-                      right: "dayGridMonth,timeGridWeek,timeGridDay",
-                    }}
-                    dayMinWidth={180}
-                    datesSet={handleDatesSet}
+                  <BigCalendar
+                    localizer={localizer}
                     events={calendarEvents}
-                    height="100%"
-                    allDaySlot
-                    slotMinTime="06:00:00"
-                    slotMaxTime="23:00:00"
-                    dayMaxEventRows={3}
-                    eventTimeFormat={{
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
+                    startAccessor="start"
+                    endAccessor="end"
+                    date={calendarDate}
+                    view={calendarView}
+                    views={["month", "week", "day"]}
+                    onNavigate={(date) => setCalendarDate(date)}
+                    onView={(nextView) => setCalendarView(nextView)}
+                    onRangeChange={(range) => {
+                      const normalized = normalizeRange(range as DateRange | Date[])
+                      setDateRange(normalized)
                     }}
-                    eventClick={(info) => {
-                      const found = events.find(
-                        (event) => event.id === info.event.id
-                      )
+                    messages={{
+                      today: "Hoje",
+                      previous: "Anterior",
+                      next: "Próximo",
+                      month: "Mês",
+                      week: "Semana",
+                      day: "Dia",
+                      agenda: "Agenda",
+                      date: "Data",
+                      time: "Hora",
+                      event: "Evento",
+                      noEventsInRange: "Nenhum evento no período.",
+                      showMore: (total) => `mais +${total}`,
+                    }}
+                    eventPropGetter={(event) => {
+                      const colorIndex =
+                        event.title.length % colorPalette.length
+                      const color = colorPalette[colorIndex]
+                      return {
+                        style: {
+                          backgroundColor: color,
+                          borderColor: color,
+                          color: "#fff",
+                        },
+                      }
+                    }}
+                    onSelectEvent={(event) => {
+                      const found = event.resource
                       if (found) {
                         setSelectedEvent(found)
                         setIsSheetOpen(true)
                       }
                     }}
+                    style={{ height: "100%" }}
                   />
                 </div>
               </div>
