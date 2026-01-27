@@ -85,6 +85,9 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
+  const [timeFilter, setTimeFilter] = useState<
+    "all" | "timed" | "undetermined"
+  >("all")
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
   const hasAutoNavigated = useRef(false)
 
@@ -239,28 +242,35 @@ export default function Home() {
     })
   }, [events, getStatus, statusFilter])
 
+  const timeFilteredEvents = useMemo(() => {
+    if (timeFilter === "all") return statusFilteredEvents
+    return statusFilteredEvents.filter((event) =>
+      timeFilter === "timed" ? !event.all_day : event.all_day
+    )
+  }, [statusFilteredEvents, timeFilter])
+
   const timedEvents = useMemo(
-    () => statusFilteredEvents.filter((event) => !event.all_day),
-    [statusFilteredEvents]
+    () => timeFilteredEvents.filter((event) => !event.all_day),
+    [timeFilteredEvents]
   )
   const undeterminedEvents = useMemo(
-    () => statusFilteredEvents.filter((event) => event.all_day),
-    [statusFilteredEvents]
+    () => timeFilteredEvents.filter((event) => event.all_day),
+    [timeFilteredEvents]
   )
 
   const listFilteredEvents = useMemo(() => {
-    if (!listStart && !listEnd) return statusFilteredEvents
+    if (!listStart && !listEnd) return timeFilteredEvents
 
     const startDate = listStart ? new Date(`${listStart}T00:00:00-03:00`) : null
     const endDate = listEnd ? new Date(`${listEnd}T23:59:59-03:00`) : null
 
-    return statusFilteredEvents.filter((event) => {
+    return timeFilteredEvents.filter((event) => {
       const eventDate = new Date(event.starts_at)
       if (startDate && eventDate < startDate) return false
       if (endDate && eventDate > endDate) return false
       return true
     })
-  }, [listEnd, listStart, statusFilteredEvents])
+  }, [listEnd, listStart, timeFilteredEvents])
 
   const listTimedEvents = useMemo(
     () => listFilteredEvents.filter((event) => !event.all_day),
@@ -381,7 +391,7 @@ export default function Home() {
   }
 
   const selectedDayEvents = useMemo(() => {
-    const filtered = statusFilteredEvents.filter((event) =>
+    const filtered = timeFilteredEvents.filter((event) =>
       isSameDay(new Date(event.starts_at), selectedDay)
     )
     return filtered.sort(
@@ -395,7 +405,7 @@ export default function Home() {
     [selectedDay]
   )
 
-  const calendarEvents: CalendarEvent[] = statusFilteredEvents.map((event) => {
+  const calendarEvents: CalendarEvent[] = timeFilteredEvents.map((event) => {
     const startsAt = new Date(event.starts_at)
     const endsAt = event.ends_at
       ? new Date(event.ends_at)
@@ -530,101 +540,91 @@ export default function Home() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
             <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Em foco
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {rangeLabel}
+                  </p>
+                  <p className="mt-1">
+                    Ajuste os filtros para deixar só o que importa.
+                  </p>
+                </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Navegação
+                    Filtros principais
                   </p>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => setCalendarDate(new Date())}
-                    >
-                      Hoje
-                    </button>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
-                        onClick={() =>
-                          view === "calendar"
-                            ? shiftCalendarDate("prev")
-                            : setListStart((current) => {
-                                if (!current) return current
-                                const date = new Date(
-                                  `${current}T00:00:00-03:00`
-                                )
-                                date.setDate(date.getDate() - 7)
-                                return date.toISOString().slice(0, 10)
-                              })
+                  <div className="mt-3 space-y-3 text-sm">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Status
+                      </p>
+                      <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                          setStatusFilter(
+                            event.target.value as
+                              | "all"
+                              | "marked"
+                              | "maybe"
+                              | "going"
+                              | "sure"
+                              | "none"
+                          )
                         }
+                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                       >
-                        Voltar
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent/40"
-                        onClick={() =>
-                          view === "calendar"
-                            ? shiftCalendarDate("next")
-                            : setListStart((current) => {
-                                if (!current) return current
-                                const date = new Date(
-                                  `${current}T00:00:00-03:00`
-                                )
-                                date.setDate(date.getDate() + 7)
-                                return date.toISOString().slice(0, 10)
-                              })
+                        <option value="all">Todos</option>
+                        <option value="marked">Marcados</option>
+                        <option value="maybe">Talvez</option>
+                        <option value="going">Vou</option>
+                        <option value="sure">Certeza</option>
+                        <option value="none">Sem status</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Horário
+                      </p>
+                      <select
+                        value={timeFilter}
+                        onChange={(event) =>
+                          setTimeFilter(
+                            event.target.value as "all" | "timed" | "undetermined"
+                          )
                         }
+                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                       >
-                        Avançar
-                      </button>
+                        <option value="all">Todos</option>
+                        <option value="timed">Com horário</option>
+                        <option value="undetermined">A divulgar</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Gênero
+                      </p>
+                      <select
+                        disabled
+                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
+                      >
+                        <option>Em breve</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Bairro
+                      </p>
+                      <select
+                        disabled
+                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
+                      >
+                        <option>Em breve</option>
+                      </select>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Visualização
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => {
-                        setView("calendar")
-                        setCalendarView("month")
-                      }}
-                    >
-                      Mês
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => {
-                        setView("calendar")
-                        setCalendarView("week")
-                      }}
-                    >
-                      Semana
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent/40"
-                      onClick={() => {
-                        setView("calendar")
-                        setCalendarView("day")
-                      }}
-                    >
-                      Dia
-                    </button>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">
-                    Período atual
-                  </p>
-                  <p className="mt-1">{rangeLabel}</p>
                 </div>
                 {view === "calendar" ? (
                   <div>
@@ -677,57 +677,14 @@ export default function Home() {
                 )}
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Filtros
+                    Amigos
                   </p>
-                  <div className="mt-3 space-y-3 text-sm">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Status
-                      </p>
-                      <select
-                        value={statusFilter}
-                        onChange={(event) =>
-                          setStatusFilter(
-                            event.target.value as
-                              | "all"
-                              | "marked"
-                              | "maybe"
-                              | "going"
-                              | "sure"
-                              | "none"
-                          )
-                        }
-                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        <option value="marked">Marcados</option>
-                        <option value="maybe">Talvez</option>
-                        <option value="going">Vou</option>
-                        <option value="sure">Certeza</option>
-                        <option value="none">Sem status</option>
-                      </select>
+                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                    <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground">
+                      Nenhum amigo conectado ainda.
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Gênero
-                      </p>
-                      <select
-                        disabled
-                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
-                      >
-                        <option>Em breve</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Bairro
-                      </p>
-                      <select
-                        disabled
-                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
-                      >
-                        <option>Em breve</option>
-                      </select>
+                    <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                      Em breve será possível comparar agendas por aqui.
                     </div>
                   </div>
                 </div>
