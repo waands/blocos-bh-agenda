@@ -1,26 +1,134 @@
 @import "tailwindcss";
+@import "@fullcalendar/core/main.css";
+@import "@fullcalendar/daygrid/main.css";
+@import "@fullcalendar/timegrid/main.css";
+@import "@fullcalendar/list/main.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f8f9ff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #3d5afe;
+  --primary-foreground: #ffffff;
+  --secondary: #ffb300;
+  --secondary-foreground: #3a2200;
+  --muted: #eef1f6;
+  --muted-foreground: #5a6474;
+  --accent: #ffe3ef;
+  --accent-foreground: #3f0a20;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #dfe4ee;
+  --input: #dfe4ee;
+  --ring: #3d5afe;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+    --background: #0b1120;
+    --foreground: #e2e8f0;
+    --card: #101827;
+    --card-foreground: #e2e8f0;
+    --popover: #0f172a;
+    --popover-foreground: #e2e8f0;
+    --primary: #8094ff;
+    --primary-foreground: #0b1120;
+    --secondary: #ffcf4a;
+    --secondary-foreground: #241400;
+    --muted: #1b2436;
+    --muted-foreground: #9aa4b2;
+    --accent: #39233a;
+    --accent-foreground: #fbe3f0;
+    --destructive: #f87171;
+    --destructive-foreground: #0b1120;
+    --border: #243047;
+    --input: #243047;
+    --ring: #8094ff;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in srgb, var(--primary) 12%, transparent);
+  --fc-now-indicator-color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.fc .fc-button {
+  border-radius: 999px;
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.fc .fc-button:hover {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  color: var(--accent-foreground);
+}
+
+.fc .fc-button-primary {
+  background: var(--primary);
+  border-color: transparent;
+  color: var(--primary-foreground);
+}
+
+.fc .fc-button-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--primary) 85%, #000000);
+}
+
+.fc .fc-daygrid-day-number {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.fc .fc-event {
+  border-radius: 0.5rem;
+  border: none;
+  padding: 0.1rem 0.35rem;
+  font-weight: 600;
 }
