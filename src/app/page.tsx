@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   addDays,
   addMonths,
@@ -81,9 +81,7 @@ export default function Home() {
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
   const [calendarView, setCalendarView] = useState<View>("week")
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
-  const [selectedDay, setSelectedDay] = useState<Date>(() =>
-    startOfDay(new Date())
-  )
+  const hasAutoNavigated = useRef(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -103,6 +101,59 @@ export default function Home() {
     }
     setCalendarDate(addWeeks(calendarDate, amount))
   }
+
+  const computeCalendarRange = (date: Date, viewMode: View): DateRange => {
+    if (viewMode === "month") {
+      const start = startOfMonth(date)
+      const end = addDays(endOfMonth(date), 1)
+      return { start, end }
+    }
+    if (viewMode === "day") {
+      const start = startOfDay(date)
+      return { start, end: addDays(start, 1) }
+    }
+    const start = startOfWeek(date, { locale: ptBR })
+    const end = endOfWeek(date, { locale: ptBR })
+    return { start, end: addDays(end, 1) }
+  }
+
+  useEffect(() => {
+    if (view !== "calendar") return
+    const range = computeCalendarRange(calendarDate, calendarView)
+    setDateRange(range)
+  }, [calendarDate, calendarView, view])
+
+  useEffect(() => {
+    if (view !== "calendar") return
+    if (hasAutoNavigated.current) return
+    if (events.length === 0) return
+
+    const sorted = [...events].sort(
+      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+    )
+    const first = sorted[0]
+    if (first) {
+      const targetDate = new Date(first.starts_at)
+      setCalendarDate(targetDate)
+      setCalendarView("month")
+      setCalendarJumpDate(targetDate.toISOString().slice(0, 10))
+      hasAutoNavigated.current = true
+    }
+  }, [events, view])
+
+  useEffect(() => {
+    if (view !== "list") return
+    const now = new Date()
+    const start =
+      listStart !== ""
+        ? new Date(`${listStart}T00:00:00-03:00`)
+        : new Date(now.getFullYear(), 0, 1)
+    const end =
+      listEnd !== ""
+        ? new Date(`${listEnd}T23:59:59-03:00`)
+        : new Date(now.getFullYear() + 1, 0, 1)
+    setDateRange({ start, end })
+  }, [listEnd, listStart, view])
 
   useEffect(() => {
     setSelectedDay(startOfDay(calendarDate))
@@ -271,13 +322,13 @@ export default function Home() {
     [selectedDay]
   )
 
-  const calendarEvents: CalendarEvent[] = events
-    .filter((event) => !event.all_day)
-    .map((event) => {
+  const calendarEvents: CalendarEvent[] = events.map((event) => {
     const startsAt = new Date(event.starts_at)
-    const endsAt = event.ends_at
-      ? new Date(event.ends_at)
-      : new Date(startsAt.getTime() + 180 * 60 * 1000)
+    const endsAt = event.all_day
+      ? addDays(startOfDay(startsAt), 1)
+      : event.ends_at
+        ? new Date(event.ends_at)
+        : new Date(startsAt.getTime() + 180 * 60 * 1000)
 
     return {
       id: event.id,
@@ -613,9 +664,11 @@ export default function Home() {
                       const color = getEventColor(event.resource)
                       return {
                         style: {
-                          backgroundColor: color.background,
-                          border: `1px solid ${color.border}`,
-                          color: color.text,
+                          backgroundColor: color,
+                          borderColor: color,
+                          color: "#fff",
+                          fontSize: "0.85rem",
+                          lineHeight: "1.2rem",
                         },
                       }
                     }}
@@ -627,7 +680,7 @@ export default function Home() {
                         setSelectedDay(startOfDay(event.start))
                       }
                     }}
-                    style={{ height: "100%" }}
+                    style={{ height: "calc(100vh - 220px)" }}
                   />
                 </div>
               </div>
