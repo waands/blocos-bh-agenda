@@ -85,6 +85,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
+  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
   const hasAutoNavigated = useRef(false)
 
   useEffect(() => {
@@ -859,6 +860,27 @@ export default function Home() {
                     }}
                     eventPropGetter={(event) => {
                       const color = getEventColor(event.resource)
+                      const status = getStatus(event.resource.id)
+                      const isHovered = hoveredEventId === event.resource.id
+                      const accent = color.border
+                      const outlineStyles =
+                        status === "maybe"
+                          ? {
+                              borderStyle: "dashed",
+                              borderWidth: "2px",
+                            }
+                          : status === "going"
+                          ? {
+                              borderStyle: "solid",
+                              borderWidth: "2px",
+                            }
+                          : status === "sure"
+                          ? {
+                              borderStyle: "solid",
+                              borderWidth: "2px",
+                              boxShadow: `0 0 0 2px ${accent}, 0 0 12px ${accent}55`,
+                            }
+                          : {}
                       return {
                         style: {
                           backgroundColor: color.background,
@@ -866,16 +888,28 @@ export default function Home() {
                           color: color.text,
                           fontSize: "0.85rem",
                           lineHeight: "1.2rem",
+                          boxShadow: isHovered
+                            ? `0 12px 24px -18px ${accent}, 0 0 0 2px ${accent}`
+                            : outlineStyles.boxShadow,
+                          borderWidth: isHovered ? "2px" : undefined,
+                          borderColor: isHovered ? accent : color.border,
+                          transform: isHovered ? "scale(1.03)" : undefined,
+                          zIndex: isHovered ? 5 : undefined,
+                          ...outlineStyles,
                         },
                       }
                     }}
                     onSelectEvent={(event) => {
+                      setHoveredEventId(event.resource.id)
                       const found = event.resource
                       if (found) {
                         setSelectedEvent(found)
                         setIsSheetOpen(true)
                         setSelectedDay(startOfDay(event.start))
                       }
+                    }}
+                    onSelectSlot={(slotInfo) => {
+                      setSelectedDay(startOfDay(slotInfo.start))
                     }}
                     style={{ height: "calc(100vh - 220px)" }}
                   />
@@ -924,7 +958,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
+            <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
               <div className="flex flex-col gap-4">
                 {view === "calendar" ? (
                   <>
@@ -952,52 +986,84 @@ export default function Home() {
                         {selectedDayEvents.length} eventos
                       </p>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {selectedDayEvents.length > 0 ? (
-                        selectedDayEvents.map((event) => {
-                          const color = getEventColor(event)
-                          const startLabel = event.all_day
+                        selectedDayEvents.reduce<{
+                          label: string
+                          events: BaseEvent[]
+                        }[]>((groups, event) => {
+                          const label = event.all_day
                             ? "Horário a divulgar"
                             : new Intl.DateTimeFormat("pt-BR", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               }).format(new Date(event.starts_at))
-                          return (
-                            <EventDetailsSheet
-                              key={event.id}
-                              event={event}
-                              status={getStatus(event.id)}
-                              onStatusChange={(status) =>
-                                setStatus(event.id, status)
-                              }
-                              trigger={
-                                <button
-                                  type="button"
-                                  className="flex w-full items-start gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-left text-xs hover:border-primary/40 hover:bg-accent/30"
-                                >
-                                  <span
-                                    className="mt-1 h-2.5 w-2.5 rounded-full border"
-                                    style={{
-                                      backgroundColor: color.background,
-                                      borderColor: color.border,
-                                    }}
+                          const last = groups[groups.length - 1]
+                          if (last && last.label === label) {
+                            last.events.push(event)
+                          } else {
+                            groups.push({ label, events: [event] })
+                          }
+                          return groups
+                        }, []).map((group) => (
+                          <div key={group.label} className="grid w-full gap-2">
+                            <div className="flex w-full items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                              <span className="h-px flex-1 bg-border/70" />
+                              <span>{group.label}</span>
+                              <span className="h-px flex-1 bg-border/70" />
+                            </div>
+                            <div className="grid w-full gap-2">
+                              {group.events.map((event) => {
+                                const color = getEventColor(event)
+                                return (
+                                  <EventDetailsSheet
+                                    key={event.id}
+                                    event={event}
+                                    status={getStatus(event.id)}
+                                    onStatusChange={(status) =>
+                                      setStatus(event.id, status)
+                                    }
+                                    trigger={
+                                  <button
+                                    type="button"
+                                    className={`grid w-full grid-cols-[10px_1fr] items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-3 text-left text-xs shadow-sm hover:border-primary/40 hover:bg-accent/30 ${
+                                      hoveredEventId === event.id
+                                        ? "ring-2 ring-primary/50"
+                                        : ""
+                                    }`}
+                                    onMouseEnter={() =>
+                                      setHoveredEventId(event.id)
+                                    }
+                                    onMouseLeave={() => setHoveredEventId(null)}
+                                  >
+                                        <span
+                                          className="mt-1 h-2.5 w-2.5 rounded-full border"
+                                          style={{
+                                            backgroundColor: color.background,
+                                            borderColor: color.border,
+                                          }}
+                                        />
+                                        <span className="flex min-w-0 flex-col gap-1">
+                                          <span className="truncate text-sm font-semibold text-foreground">
+                                            {event.title}
+                                          </span>
+                                          <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                                            {group.label}
+                                          </span>
+                                          {event.location ? (
+                                            <span className="truncate text-xs text-muted-foreground">
+                                              {event.location}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </button>
+                                    }
                                   />
-                                  <span className="flex flex-1 flex-col gap-1">
-                                    <span className="text-sm font-semibold text-foreground">
-                                      {event.title}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {startLabel}
-                                      {event.location
-                                        ? ` · ${event.location}`
-                                        : ""}
-                                    </span>
-                                  </span>
-                                </button>
-                              }
-                            />
-                          )
-                        })
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))
                       ) : (
                         <p className="text-xs text-muted-foreground">
                           Nenhum evento selecionado para este dia.
