@@ -84,7 +84,7 @@ export default function MinhaAgendaPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/?view=calendar&status=marked"
+              href="/?view=calendar&status=marked&calendarView=month"
               className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
             >
               Ver no calendário

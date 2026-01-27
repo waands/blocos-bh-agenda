@@ -123,6 +123,15 @@ export default function Home() {
         statusParam as "all" | "marked" | "maybe" | "going" | "sure" | "none"
       )
     }
+
+    const calendarViewParam = searchParams.get("calendarView")
+    if (
+      calendarViewParam === "month" ||
+      calendarViewParam === "week" ||
+      calendarViewParam === "day"
+    ) {
+      setCalendarView(calendarViewParam)
+    }
   }, [searchParams, setView, setStatusFilter])
 
   useEffect(() => {
@@ -579,20 +588,6 @@ export default function Home() {
             {errorMessage}
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-            <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
-              <div className="flex flex-col gap-5">
-                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Em foco
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">
-                    {rangeLabel}
-                  </p>
-                  <p className="mt-1">
-                    Ajuste os filtros para deixar só o que importa.
-                  </p>
-                </div>
           <>
             <div className="mb-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -624,6 +619,17 @@ export default function Home() {
             <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
               <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
                 <div className="flex flex-col gap-4">
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Em foco
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {rangeLabel}
+                    </p>
+                    <p className="mt-1">
+                      Ajuste os filtros para deixar só o que importa.
+                    </p>
+                  </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Filtros principais
