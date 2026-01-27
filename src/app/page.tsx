@@ -17,6 +17,8 @@ import {
   endOfWeek,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
@@ -69,6 +71,7 @@ const getCalendarRange = (view: View, date: Date): DateRange => {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams()
   const { view, setView, setAutoView } = useViewStore()
   const [events, setEvents] = useState<BaseEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -96,6 +99,28 @@ export default function Home() {
       .normalize("NFD")
       .replace(/\p{Diacritic}/gu, "")
       .toLowerCase()
+
+  useEffect(() => {
+    const viewParam = searchParams.get("view")
+    if (viewParam === "calendar" || viewParam === "list") {
+      setView(viewParam)
+    }
+
+    const statusParam = searchParams.get("status")
+    const allowedStatuses = new Set([
+      "all",
+      "marked",
+      "maybe",
+      "going",
+      "sure",
+      "none",
+    ])
+    if (statusParam && allowedStatuses.has(statusParam)) {
+      setStatusFilter(
+        statusParam as "all" | "marked" | "maybe" | "going" | "sure" | "none"
+      )
+    }
+  }, [searchParams, setView, setStatusFilter])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -286,12 +311,6 @@ export default function Home() {
     () => listFilteredEvents.filter((event) => event.all_day),
     [listFilteredEvents]
   )
-  const personalEvents = useMemo(() => {
-    return events.filter((event) => {
-      const status = getStatus(event.id)
-      return status === "maybe" || status === "going" || status === "sure"
-    })
-  }, [events, getStatus])
 
   const rangeLabel = useMemo(() => {
     if (!dateRange) return "Semana atual"
@@ -512,102 +531,39 @@ export default function Home() {
               acompanhe horários com duração padrão de 5 horas por bloco.
             </p>
           </div>
-          <ToggleGroup
-            type="single"
-            value={view}
-            onValueChange={(value) => {
-              if (value) setView(value as ViewMode)
-            }}
-            className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
-          >
-            <ToggleGroupItem
-              value="calendar"
-              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/minha-agenda"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
             >
-              Calendário
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="list"
-              className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              Minha agenda
+            </Link>
+            <ToggleGroup
+              type="single"
+              value={view}
+              onValueChange={(value) => {
+                if (value) setView(value as ViewMode)
+              }}
+              className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
             >
-              Lista
-            </ToggleGroupItem>
-          </ToggleGroup>
+              <ToggleGroupItem
+                value="calendar"
+                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              >
+                Calendário
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="list"
+                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              >
+                Lista
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-none px-4 py-6">
-        <section className="mb-6 rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                Sua agenda pessoal
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-foreground">
-                Veja o que você quer curtir e combine com seus amigos
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Marque blocos como talvez, vou ou certeza e compare com a
-                agenda da sua galera para decidir onde encontrar todo mundo.
-                Quem estiver logado pode gerar uma página pública para
-                compartilhar.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
-                onClick={() => setView("calendar")}
-              >
-                Abrir calendário
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
-                onClick={() => setView("list")}
-              >
-                Ir para lista
-              </button>
-            </div>
-          </div>
-          <div className="mt-6 border-t border-border/60 pt-4">
-            {personalEvents.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Seus blocos selecionados
-                </p>
-                <div className="divide-y divide-border/60">
-                  {personalEvents.slice(0, 6).map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex flex-col gap-1 py-3 text-sm"
-                    >
-                      <span className="font-medium text-foreground">
-                        {event.title}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {event.location ?? "Local a confirmar"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {personalEvents.length > 6 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Mostrando 6 de {personalEvents.length} blocos salvos.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <p>Nenhum bloco salvo ainda.</p>
-                <p>
-                  Use o calendário ou a lista para marcar o que você quer ver
-                  primeiro.
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
         {errorMessage ? (
           <div className="rounded-2xl border border-destructive/40 bg-background p-6 text-sm text-destructive">
             {errorMessage}
