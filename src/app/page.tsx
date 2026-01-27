@@ -8,6 +8,7 @@ import {
   format,
   getDay,
   isSameDay,
+  isWithinInterval,
   parse,
   startOfDay,
   startOfMonth,
@@ -83,12 +84,18 @@ export default function Home() {
   const [calendarDate, setCalendarDate] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
   const [searchTerm, setSearchTerm] = useState<string>("")
-  const [genreFilter, setGenreFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<
     "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
-  const hasAutoNavigated = useRef(false)
+  const autoJumpInFlight = useRef(false)
+  const lastAutoJumpRange = useRef<string | null>(null)
+
+  const normalizeText = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -130,23 +137,6 @@ export default function Home() {
     setDateRange(range)
   }, [calendarDate, calendarView, view])
 
-  useEffect(() => {
-    if (view !== "calendar") return
-    if (hasAutoNavigated.current) return
-    if (events.length === 0) return
-
-    const sorted = [...events].sort(
-      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
-    )
-    const first = sorted[0]
-    if (first) {
-      const targetDate = new Date(first.starts_at)
-      setCalendarDate(targetDate)
-      setCalendarView("month")
-      setCalendarJumpDate(targetDate.toISOString().slice(0, 10))
-      hasAutoNavigated.current = true
-    }
-  }, [events, view])
 
   useEffect(() => {
     if (view !== "list") return
@@ -195,10 +185,19 @@ export default function Home() {
       }
     }
 
-    if (dateRange) {
-      void fetchEvents(dateRange)
-    }
-  }, [dateRange])
+    const now = new Date()
+    const defaultYear = calendarDate.getFullYear()
+    const start =
+      listStart !== ""
+        ? new Date(`${listStart}T00:00:00-03:00`)
+        : new Date(defaultYear, 0, 1)
+    const end =
+      listEnd !== ""
+        ? new Date(`${listEnd}T23:59:59-03:00`)
+        : new Date(defaultYear + 1, 0, 1)
+
+    void fetchEvents({ start, end })
+  }, [calendarDate, listEnd, listStart])
 
   const normalizeRange = (range: DateRange | Date[] | { start: Date; end: Date }) => {
     if (Array.isArray(range)) {
@@ -228,27 +227,8 @@ export default function Home() {
     setDateRange({ start, end })
   }, [listEnd, listStart, view])
 
-  const extractGenres = (input?: string | null) => {
-    if (!input) return []
-    const match = input.match(/ritmos?:\s*([^\n|]+)/i)
-    const candidate = match ? match[1] : input.length <= 40 ? input : ""
-    if (!candidate) return []
-    return candidate
-      .split(/[;,/]/)
-      .map((value) => value.trim())
-      .filter(Boolean)
-  }
-
-  const genreOptions = useMemo(() => {
-    const options = new Set<string>()
-    events.forEach((event) => {
-      extractGenres(event.description).forEach((genre) => options.add(genre))
-    })
-    return Array.from(options).sort((a, b) => a.localeCompare(b))
-  }, [events])
-
   const statusFilteredEvents = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
+    const normalizedSearch = normalizeText(searchTerm.trim())
 
     return events.filter((event) => {
       if (statusFilter !== "all") {
@@ -264,20 +244,16 @@ export default function Home() {
         }
       }
 
-      if (normalizedSearch && !event.title.toLowerCase().includes(normalizedSearch)) {
+      if (
+        normalizedSearch &&
+        !normalizeText(event.title).includes(normalizedSearch)
+      ) {
         return false
-      }
-
-      if (genreFilter !== "all") {
-        const genres = extractGenres(event.description)
-        if (!genres.some((genre) => genre === genreFilter)) {
-          return false
-        }
       }
 
       return true
     })
-  }, [events, genreFilter, getStatus, searchTerm, statusFilter])
+  }, [events, getStatus, searchTerm, statusFilter])
 
   const timedEvents = useMemo(
     () => statusFilteredEvents.filter((event) => !event.all_day),
@@ -451,6 +427,75 @@ export default function Home() {
     }
   })
 
+  useEffect(() => {
+    if (view !== "calendar") return
+    if (!dateRange) return
+    if (searchTerm.trim() !== "") return
+    if (isLoading) return
+
+    const hasInRange = calendarEvents.some((event) =>
+      isWithinInterval(event.start, {
+        start: dateRange.start,
+        end: dateRange.end,
+      })
+    )
+    if (hasInRange) return
+
+    const rangeKey = `${dateRange.start.toISOString()}-${dateRange.end.toISOString()}`
+    if (lastAutoJumpRange.current === rangeKey) return
+    if (autoJumpInFlight.current) return
+
+    autoJumpInFlight.current = true
+    lastAutoJumpRange.current = rangeKey
+
+    const buildBaseQuery = () =>
+      supabaseClient
+        .from("events_base")
+        .select("starts_at")
+        .or("is_active.is.null,is_active.eq.true")
+
+    const jumpToClosestEvent = async () => {
+      const { data: nextData, error: nextError } = await buildBaseQuery()
+        .gte("starts_at", dateRange.start.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(1)
+
+      if (nextError) throw nextError
+
+      const next = nextData?.[0]
+      if (next?.starts_at) {
+        const targetDate = new Date(next.starts_at)
+        setCalendarDate(targetDate)
+        setCalendarView("month")
+        setCalendarJumpDate(format(targetDate, "yyyy-MM-dd"))
+        return
+      }
+
+      const { data: prevData, error: prevError } = await buildBaseQuery()
+        .lt("starts_at", dateRange.start.toISOString())
+        .order("starts_at", { ascending: false })
+        .limit(1)
+
+      if (prevError) throw prevError
+
+      const prev = prevData?.[0]
+      if (prev?.starts_at) {
+        const targetDate = new Date(prev.starts_at)
+        setCalendarDate(targetDate)
+        setCalendarView("month")
+        setCalendarJumpDate(format(targetDate, "yyyy-MM-dd"))
+      }
+    }
+
+    void jumpToClosestEvent()
+      .catch((err) => {
+        console.error("Auto-jump failed", err)
+      })
+      .finally(() => {
+        autoJumpInFlight.current = false
+      })
+  }, [calendarEvents, dateRange, isLoading, searchTerm, view])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/60">
       <header className="border-b border-border/70 bg-background/90 backdrop-blur">
@@ -575,35 +620,24 @@ export default function Home() {
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Buscar blocos
                   </p>
-                  <input
-                    type="search"
-                    placeholder="Procure pelo nome do bloco"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                  />
-                </div>
-                <div className="w-full lg:w-60">
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Gênero
-                  </p>
-                  <select
-                    value={genreFilter}
-                    onChange={(event) => setGenreFilter(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                    disabled={genreOptions.length === 0}
-                  >
-                    <option value="all">Todos os gêneros</option>
-                    {genreOptions.length === 0 ? (
-                      <option value="empty">Sem gêneros cadastrados</option>
-                    ) : (
-                      genreOptions.map((genre) => (
-                        <option key={genre} value={genre}>
-                          {genre}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                  <div className="relative mt-2">
+                    <input
+                      type="search"
+                      placeholder="Procure pelo nome do bloco"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      className="h-10 w-full rounded-md border border-border bg-background px-3 pr-16 text-sm"
+                    />
+                    {searchTerm ? (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent/40"
+                      >
+                        Limpar
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
