@@ -53,7 +53,7 @@ export default function Home() {
         const { data, error } = await supabaseClient
           .from("events_base")
           .select("id,title,starts_at,ends_at,location,description,all_day")
-          .eq("is_active", true)
+          .or("is_active.is.null,is_active.eq.true")
           .gte("starts_at", range.start.toISOString())
           .lt("starts_at", range.end.toISOString())
           .order("starts_at", { ascending: true })
@@ -141,21 +141,23 @@ export default function Home() {
   }, [dateRange])
 
   const colorPalette = [
-    "#2563eb",
-    "#16a34a",
-    "#dc2626",
-    "#f97316",
-    "#7c3aed",
-    "#0ea5e9",
-    "#0891b2",
-    "#ca8a04",
+    "#ff6f00",
+    "#ff4081",
+    "#ffb300",
+    "#00bfae",
+    "#3d5afe",
+    "#7c4dff",
+    "#26c6da",
+    "#ffa000",
   ]
 
-  const calendarEvents = timedEvents.map((event) => {
+  const calendarEvents = events.map((event) => {
     const startsAt = new Date(event.starts_at)
     const endsAt = event.ends_at
       ? new Date(event.ends_at)
-      : new Date(startsAt.getTime() + 180 * 60 * 1000)
+      : event.all_day
+        ? undefined
+        : new Date(startsAt.getTime() + 180 * 60 * 1000)
     const colorIndex = event.title.length % colorPalette.length
 
     return {
@@ -163,14 +165,15 @@ export default function Home() {
       title: event.title,
       start: startsAt,
       end: endsAt,
+      allDay: event.all_day,
       backgroundColor: colorPalette[colorIndex],
       borderColor: colorPalette[colorIndex],
     }
   })
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="border-b border-border bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/60">
+      <header className="border-b border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -179,6 +182,10 @@ export default function Home() {
             <h1 className="text-2xl font-semibold text-foreground">
               Blocos BH
             </h1>
+            <p className="mt-2 max-w-lg text-sm text-muted-foreground">
+              Filtre sua programação, acompanhe os horários e monte sua agenda
+              com visão semanal e lista.
+            </p>
           </div>
           <ToggleGroup
             type="single"
@@ -186,7 +193,7 @@ export default function Home() {
             onValueChange={(value) => {
               if (value) setView(value as ViewMode)
             }}
-            className="rounded-full border border-border bg-background p-1"
+            className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
           >
             <ToggleGroupItem
               value="calendar"
@@ -210,8 +217,8 @@ export default function Home() {
             {errorMessage}
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_240px]">
-            <aside className="hidden rounded-2xl border border-border bg-background p-4 text-sm lg:block">
+          <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
+            <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -288,7 +295,7 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
                   <p className="font-semibold text-foreground">
                     Período atual
                   </p>
@@ -346,7 +353,7 @@ export default function Home() {
               </div>
             </aside>
             {view === "calendar" ? (
-              <div className="relative rounded-2xl border border-border bg-background p-4 shadow-sm min-h-[calc(100vh-200px)]">
+              <div className="relative min-h-[calc(100vh-200px)] rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
                 {isLoading ? (
                   <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/40 backdrop-blur-sm">
                     <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-sm">
@@ -376,11 +383,17 @@ export default function Home() {
                     datesSet={handleDatesSet}
                     events={calendarEvents}
                     height="100%"
-                    allDaySlot={false}
+                    allDaySlot
                     slotMinTime="06:00:00"
                     slotMaxTime="23:00:00"
+                    dayMaxEventRows={3}
+                    eventTimeFormat={{
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    }}
                     eventClick={(info) => {
-                      const found = timedEvents.find(
+                      const found = events.find(
                         (event) => event.id === info.event.id
                       )
                       if (found) {
@@ -434,7 +447,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            <aside className="hidden rounded-2xl border border-border bg-background p-4 text-sm lg:block">
+            <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -475,10 +488,10 @@ export default function Home() {
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    As cores ajudam a diferenciar eventos.
+                    Cores vibrantes para destacar blocos e horários.
                   </p>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
                   <p className="font-semibold text-foreground">
                     Dica rápida
                   </p>

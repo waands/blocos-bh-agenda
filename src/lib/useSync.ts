@@ -120,7 +120,7 @@ export function useSync() {
           overrideUpserts.push({
             owner_id: user.id,
             base_event_id: eventId,
-            status: localStatus?.status ?? "talvez",
+              status: localStatus?.status ?? "maybe",
             hidden: localOverride?.hidden,
             notes: localOverride?.notes,
             updated_at: localUpdatedAt,
@@ -143,7 +143,7 @@ export function useSync() {
             overrideUpserts.push({
               owner_id: user.id,
               base_event_id: eventId,
-              status: localStatus?.status ?? remoteStatus?.status ?? "talvez",
+              status: localStatus?.status ?? remoteStatus?.status ?? "maybe",
               hidden:
                 localOverride?.hidden ?? remoteOverride?.hidden ?? false,
               notes: localOverride?.notes ?? remoteOverride?.notes,
@@ -220,7 +220,7 @@ export function useSync() {
         {
           owner_id: user.id,
           base_event_id: eventId,
-          status: statusMap[eventId]?.status ?? "talvez",
+          status: statusMap[eventId]?.status ?? "maybe",
           hidden: override.hidden ?? false,
           notes: override.notes ?? null,
           updated_at: updatedAt,
