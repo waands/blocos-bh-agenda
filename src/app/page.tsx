@@ -21,6 +21,7 @@ import { useSearchParams } from "next/navigation"
 import { dateFnsLocalizer, type View } from "react-big-calendar"
 
 import { EventDetailsSheet } from "@/components/event-details-sheet"
+import { AuthPanel } from "@/components/auth-panel"
 import { CalendarPanel } from "@/components/home/calendar-panel"
 import { FiltersSidebar } from "@/components/home/filters-sidebar"
 import { ListPanel } from "@/components/home/list-panel"
@@ -77,7 +78,7 @@ export default function Home() {
   const [selectedEvent, setSelectedEvent] = useState<BaseEvent | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
-  const { getStatus, setStatus } = useSync()
+  const { getStatus, setStatus, isAuthenticated, syncing } = useSync()
   const [listStart, setListStart] = useState<string>("")
   const [listEnd, setListEnd] = useState<string>("")
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>("")
@@ -516,6 +517,7 @@ export default function Home() {
           </div>
         ) : (
           <>
+            <AuthPanel isAuthenticated={isAuthenticated} syncing={syncing} />
             <SearchCard
               searchTerm={searchTerm}
               onSearchTermChange={setSearchTerm}
