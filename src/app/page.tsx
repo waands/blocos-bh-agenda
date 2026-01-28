@@ -17,17 +17,16 @@ import {
   endOfWeek,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import {
-  Calendar as BigCalendar,
-  dateFnsLocalizer,
-  type View,
-} from "react-big-calendar"
+import { dateFnsLocalizer, type View } from "react-big-calendar"
 
 import { EventDetailsSheet } from "@/components/event-details-sheet"
-import { EventRow } from "@/components/event-row"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { CalendarPanel } from "@/components/home/calendar-panel"
+import { FiltersSidebar } from "@/components/home/filters-sidebar"
+import { HomeHeader } from "@/components/home/home-header"
+import { ListPanel } from "@/components/home/list-panel"
+import { RightSidebar } from "@/components/home/right-sidebar"
+import { SearchCard } from "@/components/home/search-card"
 import type { BaseEvent } from "@/lib/eventTypes"
 import { supabaseClient } from "@/lib/supabaseClient"
 import { useSync } from "@/lib/useSync"
@@ -97,12 +96,6 @@ export default function Home() {
   const autoJumpInFlight = useRef(false)
   const lastAutoJumpRange = useRef<string | null>(null)
 
-  const normalizeText = (value: string) =>
-    value
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "")
-      .toLowerCase()
-
   useEffect(() => {
     const viewParam = searchParams.get("view")
     if (viewParam === "calendar" || viewParam === "list") {
@@ -153,42 +146,6 @@ export default function Home() {
     setCalendarDate(addWeeks(calendarDate, amount))
   }
 
-  const computeCalendarRange = (date: Date, viewMode: View): DateRange => {
-    if (viewMode === "month") {
-      const start = startOfMonth(date)
-      const end = addDays(endOfMonth(date), 1)
-      return { start, end }
-    }
-    if (viewMode === "day") {
-      const start = startOfDay(date)
-      return { start, end: addDays(start, 1) }
-    }
-    const start = startOfWeek(date, { locale: ptBR })
-    const end = endOfWeek(date, { locale: ptBR })
-    return { start, end: addDays(end, 1) }
-  }
-
-  useEffect(() => {
-    if (view !== "calendar") return
-    const range = computeCalendarRange(calendarDate, calendarView)
-    setDateRange(range)
-  }, [calendarDate, calendarView, view])
-
-
-  useEffect(() => {
-    if (view !== "list") return
-    const now = new Date()
-    const start =
-      listStart !== ""
-        ? new Date(`${listStart}T00:00:00-03:00`)
-        : new Date(now.getFullYear(), 0, 1)
-    const end =
-      listEnd !== ""
-        ? new Date(`${listEnd}T23:59:59-03:00`)
-        : new Date(now.getFullYear() + 1, 0, 1)
-    setDateRange({ start, end })
-  }, [listEnd, listStart, view])
-
   useEffect(() => {
     setSelectedDay(startOfDay(calendarDate))
   }, [calendarDate])
@@ -238,7 +195,9 @@ export default function Home() {
     void fetchEvents({ start, end })
   }, [calendarDate, listEnd, listStart])
 
-  const normalizeRange = (range: DateRange | Date[] | { start: Date; end: Date }) => {
+  const normalizeRange = (
+    range: DateRange | Date[] | { start: Date; end: Date }
+  ) => {
     if (Array.isArray(range)) {
       const start = range[0]
       const end = range[range.length - 1]
@@ -267,8 +226,6 @@ export default function Home() {
   }, [listEnd, listStart, view])
 
   const statusFilteredEvents = useMemo(() => {
-    const normalizedSearch = normalizeText(searchTerm.trim())
-
     return events.filter((event) => {
       const status = getStatus(event.id)
       if (statusFilter === "marked") {
@@ -282,7 +239,7 @@ export default function Home() {
 
       return true
     })
-  }, [events, getStatus, searchTerm, statusFilter])
+  }, [events, getStatus, statusFilter])
 
   const timeFilteredEvents = useMemo(() => {
     if (timeFilter === "all") return statusFilteredEvents
@@ -290,15 +247,6 @@ export default function Home() {
       timeFilter === "timed" ? !event.all_day : event.all_day
     )
   }, [statusFilteredEvents, timeFilter])
-
-  const timedEvents = useMemo(
-    () => timeFilteredEvents.filter((event) => !event.all_day),
-    [timeFilteredEvents]
-  )
-  const undeterminedEvents = useMemo(
-    () => timeFilteredEvents.filter((event) => event.all_day),
-    [timeFilteredEvents]
-  )
 
   const listFilteredEvents = useMemo(() => {
     if (!listStart && !listEnd) return timeFilteredEvents
@@ -445,12 +393,7 @@ export default function Home() {
       (a, b) =>
         new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
     )
-  }, [selectedDay, statusFilteredEvents])
-
-  const selectedDayLabel = useMemo(
-    () => format(selectedDay, "d 'de' MMMM", { locale: ptBR }),
-    [selectedDay]
-  )
+  }, [selectedDay, timeFilteredEvents])
 
   const calendarEvents: CalendarEvent[] = timeFilteredEvents.map((event) => {
     const startsAt = new Date(event.starts_at)
@@ -539,51 +482,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/60">
-      <header className="border-b border-border/70 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              Agenda de blocos
-            </p>
-            <h1 className="text-2xl font-semibold text-foreground">
-              Blocos BH
-            </h1>
-            <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-              Organize seus blocos preferidos, compare agendas com amigos e
-              acompanhe horários com duração padrão de 5 horas por bloco.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/minha-agenda"
-              className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
-            >
-              Minha agenda
-            </Link>
-            <ToggleGroup
-              type="single"
-              value={view}
-              onValueChange={(value) => {
-                if (value) setView(value as ViewMode)
-              }}
-              className="rounded-full border border-border bg-background/80 p-1 shadow-sm"
-            >
-              <ToggleGroupItem
-                value="calendar"
-                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                Calendário
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="list"
-                className="rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                Lista
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-        </div>
-      </header>
+      <HomeHeader view={view} onViewChange={setView} />
 
       <main className="mx-auto w-full max-w-none px-4 py-6">
         {errorMessage ? (
@@ -592,605 +491,92 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <div className="mb-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="flex-1">
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Buscar blocos
-                  </p>
-                  <div className="relative mt-2">
-                    <input
-                      type="search"
-                      placeholder="Procure pelo nome do bloco"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      className="h-10 w-full rounded-md border border-border bg-background px-3 pr-16 text-sm"
-                    />
-                    {searchTerm ? (
-                      <button
-                        type="button"
-                        onClick={() => setSearchTerm("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent/40"
-                      >
-                        Limpar
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SearchCard
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              onClearSearch={() => setSearchTerm("")}
+            />
             <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-              <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
-                <div className="flex flex-col gap-4">
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      Em foco
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">
-                      {rangeLabel}
-                    </p>
-                    <p className="mt-1">
-                      Ajuste os filtros para deixar só o que importa.
-                    </p>
-                  </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Filtros principais
-                  </p>
-                  <div className="mt-3 space-y-3 text-sm">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Status
-                      </p>
-                      <select
-                        value={statusFilter}
-                        onChange={(event) =>
-                          setStatusFilter(
-                            event.target.value as
-                              | "all"
-                              | "marked"
-                              | "maybe"
-                              | "going"
-                              | "sure"
-                              | "none"
-                          )
-                        }
-                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        <option value="marked">Marcados</option>
-                        <option value="maybe">Talvez</option>
-                        <option value="going">Vou</option>
-                        <option value="sure">Certeza</option>
-                        <option value="none">Sem status</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Horário
-                      </p>
-                      <select
-                        value={timeFilter}
-                        onChange={(event) =>
-                          setTimeFilter(
-                            event.target.value as "all" | "timed" | "undetermined"
-                          )
-                        }
-                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        <option value="timed">Com horário</option>
-                        <option value="undetermined">A divulgar</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Gênero
-                      </p>
-                      <select
-                        disabled
-                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
-                      >
-                        <option>Em breve</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Bairro
-                      </p>
-                      <select
-                        disabled
-                        className="h-9 w-full rounded-md border border-border bg-muted/60 px-2 text-sm text-muted-foreground"
-                      >
-                        <option>Em breve</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                {view === "calendar" ? (
-                  <div>
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                      Ir para data
-                    </p>
-                    <input
-                      type="date"
-                      value={calendarJumpDate}
-                      onChange={(event) => {
-                        const value = event.target.value
-                        setCalendarJumpDate(value)
-                        if (value) {
-                          setCalendarDate(new Date(`${value}T00:00:00`))
-                        }
-                      }}
-                      className="mt-3 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                      Filtrar período
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2 text-sm">
-                      <input
-                        type="date"
-                        value={listStart}
-                        onChange={(event) => setListStart(event.target.value)}
-                        className="h-9 rounded-md border border-border bg-background px-2"
-                      />
-                      <input
-                        type="date"
-                        value={listEnd}
-                        onChange={(event) => setListEnd(event.target.value)}
-                        className="h-9 rounded-md border border-border bg-background px-2"
-                      />
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground underline"
-                        onClick={() => {
-                          setListStart("")
-                          setListEnd("")
-                        }}
-                      >
-                        limpar
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Amigos
-                  </p>
-                  <div className="mt-3 space-y-3 text-sm">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Status
-                      </p>
-                      <select
-                        value={statusFilter}
-                        onChange={(event) =>
-                          setStatusFilter(
-                            event.target.value as
-                              | "all"
-                              | "marked"
-                              | "maybe"
-                              | "going"
-                              | "sure"
-                              | "not_going"
-                              | "none"
-                          )
-                        }
-                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        <option value="marked">Marcados</option>
-                        <option value="maybe">Estou pensando</option>
-                        <option value="going">Quero ir</option>
-                        <option value="sure">Certeza</option>
-                        <option value="not_going">Não vou</option>
-                        <option value="none">Sem status</option>
-                      </select>
-                    </div>
-                    <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-                      Em breve será possível comparar agendas por aqui.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </aside>
+              <FiltersSidebar
+                view={view}
+                rangeLabel={rangeLabel}
+                statusFilter={statusFilter}
+                timeFilter={timeFilter}
+                calendarJumpDate={calendarJumpDate}
+                listStart={listStart}
+                listEnd={listEnd}
+                onStatusFilterChange={setStatusFilter}
+                onTimeFilterChange={setTimeFilter}
+                onCalendarJumpDateChange={setCalendarJumpDate}
+                onListStartChange={setListStart}
+                onListEndChange={setListEnd}
+                onClearListDates={() => {
+                  setListStart("")
+                  setListEnd("")
+                }}
+                onCalendarDateChange={(value) =>
+                  setCalendarDate(new Date(`${value}T00:00:00`))
+                }
+              />
             {view === "calendar" ? (
-              <div className="relative min-h-[calc(100vh-200px)] rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-                <div className="mb-4 flex flex-col gap-3 lg:hidden">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">
-                      {calendarTitle}
-                    </p>
-                    <button
-                      type="button"
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
-                      onClick={() => setCalendarDate(new Date())}
-                    >
-                      Hoje
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
-                        onClick={() => shiftCalendarDate("prev")}
-                      >
-                        Voltar
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
-                        onClick={() => shiftCalendarDate("next")}
-                      >
-                        Avançar
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1 text-xs">
-                      <button
-                        type="button"
-                        className={`rounded-full px-2 py-1 ${
-                          calendarView === "month"
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => setCalendarView("month")}
-                      >
-                        Mês
-                      </button>
-                      <button
-                        type="button"
-                        className={`rounded-full px-2 py-1 ${
-                          calendarView === "week"
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => setCalendarView("week")}
-                      >
-                        Semana
-                      </button>
-                      <button
-                        type="button"
-                        className={`rounded-full px-2 py-1 ${
-                          calendarView === "day"
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => setCalendarView("day")}
-                      >
-                        Dia
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {isLoading ? (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/40 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-sm">
-                      <span className="inline-flex size-2 animate-pulse rounded-full bg-primary" />
-                      Atualizando
-                    </div>
-                  </div>
-                ) : null}
-                <div className={isLoading ? "blur-sm" : ""}>
-                  <BigCalendar
-                    localizer={localizer}
-                    events={calendarEvents}
-                    startAccessor="start"
-                    endAccessor="end"
-                    date={calendarDate}
-                    view={calendarView}
-                    views={["month", "week", "day"]}
-                    onNavigate={(date) => setCalendarDate(date)}
-                    onView={(nextView) => setCalendarView(nextView)}
-                    onRangeChange={(range) => {
-                      if (view !== "calendar") return
-                      const normalized = normalizeRange(
-                        range as DateRange | Date[]
-                      )
-                      setDateRange(normalized)
-                    }}
-                    selectable
-                    onSelectSlot={(slotInfo) => {
-                      setSelectedDay(startOfDay(slotInfo.start))
-                    }}
-                    messages={{
-                      today: "Hoje",
-                      previous: "Anterior",
-                      next: "Próximo",
-                      month: "Mês",
-                      week: "Semana",
-                      day: "Dia",
-                      agenda: "Agenda",
-                      date: "Data",
-                      time: "Hora",
-                      event: "Evento",
-                      noEventsInRange: "Nenhum evento no período.",
-                      showMore: (total) => `mais +${total}`,
-                    }}
-                    dayPropGetter={(date) => {
-                      if (isSameDay(date, selectedDay)) {
-                        return { className: "is-selected-day" }
-                      }
-                      return {}
-                    }}
-                    headerPropGetter={(date) => {
-                      if (isSameDay(date, selectedDay)) {
-                        return { className: "is-selected-day" }
-                      }
-                      return {}
-                    }}
-                    eventPropGetter={(event) => {
-                      const color = getEventColor(event.resource)
-                      const status = getStatus(event.resource.id)
-                      const isHovered = hoveredEventId === event.resource.id
-                      const accent = color.border
-                      const outlineStyles =
-                        status === "maybe"
-                          ? {
-                              borderStyle: "dashed",
-                              borderWidth: "2px",
-                            }
-                          : status === "going"
-                          ? {
-                              borderStyle: "solid",
-                              borderWidth: "2px",
-                            }
-                          : status === "sure"
-                          ? {
-                              borderStyle: "solid",
-                              borderWidth: "2px",
-                              boxShadow: `0 0 0 2px ${accent}, 0 0 12px ${accent}55`,
-                            }
-                          : status === "not_going"
-                          ? {
-                              borderStyle: "dashed",
-                              borderWidth: "1px",
-                              opacity: 0.45,
-                              filter: "grayscale(0.6)",
-                            }
-                          : {}
-                      return {
-                        style: {
-                          backgroundColor: color.background,
-                          borderColor: color.border,
-                          color: color.text,
-                          fontSize: "0.85rem",
-                          lineHeight: "1.2rem",
-                          boxShadow: isHovered
-                            ? `0 12px 24px -18px ${accent}, 0 0 0 2px ${accent}`
-                            : outlineStyles.boxShadow,
-                          borderWidth: isHovered ? "2px" : undefined,
-                          borderColor: isHovered ? accent : color.border,
-                          transform: isHovered ? "scale(1.03)" : undefined,
-                          zIndex: isHovered ? 5 : undefined,
-                          ...outlineStyles,
-                        },
-                      }
-                    }}
-                    onSelectEvent={(event) => {
-                      setHoveredEventId(event.resource.id)
-                      const found = event.resource
-                      if (found) {
-                        setSelectedEvent(found)
-                        setIsSheetOpen(true)
-                        setSelectedDay(startOfDay(event.start))
-                      }
-                    }}
-                    onSelectSlot={(slotInfo) => {
-                      setSelectedDay(startOfDay(slotInfo.start))
-                    }}
-                    style={{ height: "calc(100vh - 220px)" }}
-                  />
-                </div>
-              </div>
+              <CalendarPanel
+                isLoading={isLoading}
+                calendarTitle={calendarTitle}
+                calendarDate={calendarDate}
+                calendarView={calendarView}
+                calendarEvents={calendarEvents}
+                localizer={localizer}
+                selectedDay={selectedDay}
+                hoveredEventId={hoveredEventId}
+                onToday={() => setCalendarDate(new Date())}
+                onPrev={() => shiftCalendarDate("prev")}
+                onNext={() => shiftCalendarDate("next")}
+                onCalendarDateChange={setCalendarDate}
+                onCalendarViewChange={setCalendarView}
+                onRangeChange={(range) => {
+                  if (view !== "calendar") return
+                  const normalized = normalizeRange(
+                    range as DateRange | Date[]
+                  )
+                  setDateRange(normalized)
+                }}
+                onSelectDay={(date) => setSelectedDay(startOfDay(date))}
+                onSelectEvent={(event, start) => {
+                  setSelectedEvent(event)
+                  setIsSheetOpen(true)
+                  setSelectedDay(startOfDay(start))
+                }}
+                onHoverEvent={setHoveredEventId}
+                getEventColor={getEventColor}
+                getStatus={getStatus}
+              />
             ) : (
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4">
-                  {isLoading ? (
-                    <p className="text-sm text-muted-foreground">
-                      Carregando eventos...
-                    </p>
-                  ) : null}
-                  {listTimedEvents.map((event) => (
-                    <EventRow
-                      key={event.id}
-                      event={event}
-                      status={getStatus(event.id)}
-                      onStatusChange={(status) => setStatus(event.id, status)}
-                    />
-                  ))}
-                  {listTimedEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum evento com horário definido nesta semana.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-4">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Horário a divulgar
-                  </p>
-                  {listUndeterminedEvents.length > 0 ? (
-                    listUndeterminedEvents.map((event) => (
-                      <EventRow
-                        key={event.id}
-                        event={event}
-                        status={getStatus(event.id)}
-                        onStatusChange={(status) => setStatus(event.id, status)}
-                      />
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum evento sem horário definido.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <ListPanel
+                isLoading={isLoading}
+                listTimedEvents={listTimedEvents}
+                listUndeterminedEvents={listUndeterminedEvents}
+                getStatus={getStatus}
+                onStatusChange={setStatus}
+              />
             )}
-            <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
-              <div className="flex flex-col gap-4">
-                {view === "calendar" ? (
-                  <>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                          Selecionado
-                        </p>
-                        <button
-                          type="button"
-                          className="rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent/40"
-                          onClick={() => {
-                            setView("calendar")
-                            setCalendarView("day")
-                            setCalendarDate(selectedDay)
-                          }}
-                        >
-                          Ver dia
-                        </button>
-                      </div>
-                      <p className="mt-2 text-sm font-semibold text-foreground">
-                        {selectedDayLabel}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {selectedDayEvents.length} eventos
-                      </p>
-                    </div>
-                    <div className="space-y-3">
-                      {selectedDayEvents.length > 0 ? (
-                        selectedDayEvents.reduce<{
-                          label: string
-                          events: BaseEvent[]
-                        }[]>((groups, event) => {
-                          const label = event.all_day
-                            ? "Horário a divulgar"
-                            : new Intl.DateTimeFormat("pt-BR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }).format(new Date(event.starts_at))
-                          const last = groups[groups.length - 1]
-                          if (last && last.label === label) {
-                            last.events.push(event)
-                          } else {
-                            groups.push({ label, events: [event] })
-                          }
-                          return groups
-                        }, []).map((group) => (
-                          <div key={group.label} className="grid w-full gap-2">
-                            <div className="flex w-full items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
-                              <span className="h-px flex-1 bg-border/70" />
-                              <span>{group.label}</span>
-                              <span className="h-px flex-1 bg-border/70" />
-                            </div>
-                            <div className="grid w-full gap-2">
-                              {group.events.map((event) => {
-                                const color = getEventColor(event)
-                                return (
-                                  <EventDetailsSheet
-                                    key={event.id}
-                                    event={event}
-                                    status={getStatus(event.id)}
-                                    onStatusChange={(status) =>
-                                      setStatus(event.id, status)
-                                    }
-                                    trigger={
-                                  <button
-                                    type="button"
-                                    className={`grid w-full grid-cols-[10px_1fr] items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-3 text-left text-xs shadow-sm hover:border-primary/40 hover:bg-accent/30 ${
-                                      hoveredEventId === event.id
-                                        ? "ring-2 ring-primary/50"
-                                        : ""
-                                    }`}
-                                    onMouseEnter={() =>
-                                      setHoveredEventId(event.id)
-                                    }
-                                    onMouseLeave={() => setHoveredEventId(null)}
-                                  >
-                                        <span
-                                          className="mt-1 h-2.5 w-2.5 rounded-full border"
-                                          style={{
-                                            backgroundColor: color.background,
-                                            borderColor: color.border,
-                                          }}
-                                        />
-                                        <span className="flex min-w-0 flex-col gap-1">
-                                          <span className="truncate text-sm font-semibold text-foreground">
-                                            {event.title}
-                                          </span>
-                                          <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                                            {group.label}
-                                          </span>
-                                          {event.location ? (
-                                            <span className="truncate text-xs text-muted-foreground">
-                                              {event.location}
-                                            </span>
-                                          ) : null}
-                                        </span>
-                                      </button>
-                                    }
-                                  />
-                                )
-                              })}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Nenhum evento selecionado para este dia.
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                        Cores
-                      </p>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Eventos no mesmo horário recebem tons diferentes do
-                        mesmo matiz para facilitar a leitura.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                        Resumo
-                      </p>
-                      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                        <p>
-                          Eventos no período:{" "}
-                          <span className="font-semibold text-foreground">
-                            {listFilteredEvents.length}
-                          </span>
-                        </p>
-                        <p>
-                          Com horário:{" "}
-                          <span className="font-semibold text-foreground">
-                            {listTimedEvents.length}
-                          </span>
-                        </p>
-                        <p>
-                          A divulgar:{" "}
-                          <span className="font-semibold text-foreground">
-                            {listUndeterminedEvents.length}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-                      <p className="font-semibold text-foreground">
-                        Dica rápida
-                      </p>
-                      <p className="mt-1">
-                        Use o filtro do menu esquerdo para ajustar o período da
-                        lista ou pular para uma data específica no calendário.
-                      </p>
-                    </div>
-                  </>
-                )}
-                </div>
-              </aside>
+            <RightSidebar
+              view={view}
+              selectedDay={selectedDay}
+              selectedDayEvents={selectedDayEvents}
+              listFilteredEvents={listFilteredEvents}
+              listTimedEvents={listTimedEvents}
+              listUndeterminedEvents={listUndeterminedEvents}
+              hoveredEventId={hoveredEventId}
+              onHoverEvent={setHoveredEventId}
+              onJumpToDay={(date) => {
+                setView("calendar")
+                setCalendarView("day")
+                setCalendarDate(date)
+              }}
+              getEventColor={getEventColor}
+              getStatus={getStatus}
+              onStatusChange={setStatus}
+            />
             </div>
           </>
         )}
