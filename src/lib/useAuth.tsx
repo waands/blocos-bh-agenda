@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { User } from "@supabase/supabase-js"
 
 import { supabaseClient } from "@/lib/supabaseClient"
 
 type AuthState = {
-  user: { id: string } | null
+  user: User | null
   loading: boolean
 }
 
