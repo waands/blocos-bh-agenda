@@ -5,7 +5,7 @@ import { addYears, format, startOfYear } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import Link from "next/link"
 
-import { AuthPanel } from "@/components/auth-panel"
+import { AuthMenu } from "@/components/auth-menu"
 import { EventRow } from "@/components/event-row"
 import type { BaseEvent } from "@/lib/eventTypes"
 import { supabaseClient } from "@/lib/supabaseClient"
@@ -96,6 +96,7 @@ export default function MinhaAgendaPage() {
             >
               Voltar para agenda geral
             </Link>
+            <AuthMenu syncing={syncing} />
           </div>
         </div>
       </header>
