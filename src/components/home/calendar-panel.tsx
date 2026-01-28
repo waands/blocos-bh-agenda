@@ -211,6 +211,8 @@ export function CalendarPanel({
                     filter: "grayscale(0.6)",
                   }
                 : {}
+            const baseBorderWidth = isHovered ? "2px" : "1.5px"
+
             return {
               style: {
                 backgroundColor: color.background,
@@ -218,10 +220,11 @@ export function CalendarPanel({
                 color: color.text,
                 fontSize: "0.85rem",
                 lineHeight: "1.2rem",
+                borderStyle: "solid",
+                borderWidth: baseBorderWidth,
                 boxShadow: isHovered
                   ? `0 12px 24px -18px ${accent}, 0 0 0 2px ${accent}`
                   : outlineStyles.boxShadow,
-                borderWidth: isHovered ? "2px" : undefined,
                 borderColor: isHovered ? accent : color.border,
                 transform: isHovered ? "scale(1.03)" : undefined,
                 zIndex: isHovered ? 5 : undefined,
