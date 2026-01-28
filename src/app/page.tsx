@@ -347,8 +347,9 @@ export default function Home() {
     })
 
     const colorMap = new Map<string, EventColor>()
-    const hueOffsets = [0, 35, 70, 105, 140, 175, 210, 245, 280, 315]
-    const lightnessLevels = [46, 58, 70]
+    const hueOffsets = [0, 6, -6, 12, -12, 18, -18]
+    const lightnessLevels = [42, 52, 62, 70]
+    const saturationLevels = [74, 68, 62, 56]
 
     slotEntries.forEach(([_, slotEvents], slotIndex) => {
       const baseHue = (slotIndex * 137.5 + 24) % 360
@@ -364,14 +365,16 @@ export default function Home() {
         const hueShift = hueOffsets[index % hueOffsets.length]
         const band = Math.floor(index / hueOffsets.length)
         const lightness = lightnessLevels[band % lightnessLevels.length]
-        const hue = (baseHue + hueShift + band * 9) % 360
-        const borderLightness = Math.max(28, lightness - 16)
-        const background = `hsl(${hue.toFixed(1)} 72% ${lightness.toFixed(
+        const saturation = saturationLevels[band % saturationLevels.length]
+        const hue = (baseHue + hueShift) % 360
+        const borderLightness = Math.max(26, lightness - 18)
+        const background = `hsl(${hue.toFixed(1)} ${saturation.toFixed(
           1
-        )}%)`
-        const border = `hsl(${hue.toFixed(1)} 80% ${borderLightness.toFixed(
-          1
-        )}%)`
+        )}% ${lightness.toFixed(1)}%)`
+        const border = `hsl(${hue.toFixed(1)} ${Math.min(
+          86,
+          saturation + 10
+        ).toFixed(1)}% ${borderLightness.toFixed(1)}%)`
         const text = lightness > 60 ? "#0f172a" : "#f8fafc"
 
         colorMap.set(event.id, { background, border, text })
