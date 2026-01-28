@@ -73,10 +73,6 @@ export function EventDetailsSheet({
   )
 
   useEffect(() => {
-    setStatus(statusProp ?? null)
-  }, [event.id, statusProp])
-
-  useEffect(() => {
     const roleMap = loadGoingRoleMap<GoingRole>()
     setGoingRole(roleMap[event.id] ?? null)
   }, [event.id])
@@ -119,10 +115,14 @@ export function EventDetailsSheet({
     .map((value) => value.trim())
     .filter(Boolean)
 
+  useEffect(() => {
+    setStatus(statusProp ?? null)
+  }, [event.id])
+
   const handleStatusChange = (nextStatus: StatusValue) => {
-    const resolvedStatus = status === nextStatus ? null : nextStatus
-    setStatus(resolvedStatus)
-    onStatusChange?.(resolvedStatus)
+    const nextValue = status === nextStatus ? null : nextStatus
+    setStatus(nextValue)
+    onStatusChange?.(nextValue)
   }
 
   const handleGoingRoleChange = (nextRole: GoingRole) => {

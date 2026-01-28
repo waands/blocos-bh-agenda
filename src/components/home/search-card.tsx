@@ -21,7 +21,7 @@ export function SearchCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link
           href="/minha-agenda"
-          className="w-fit rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-accent/40"
+          className="inline-flex min-w-[160px] items-center justify-center rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent/40"
         >
           Minha agenda
         </Link>

@@ -202,7 +202,7 @@ export function AuthMenu({ syncing }: AuthMenuProps) {
         <div
           role="dialog"
           aria-label="Entrar ou ver perfil"
-          className="absolute right-0 mt-3 w-[min(92vw,360px)] rounded-2xl border border-border/70 bg-card p-4 shadow-lg"
+          className="absolute right-0 z-50 mt-3 w-[min(92vw,360px)] rounded-2xl border border-border/70 bg-card p-4 shadow-lg"
         >
           {loading ? (
             <p className="text-sm text-muted-foreground">

@@ -144,8 +144,8 @@ export function useSync() {
             owner_id: user.id,
             base_event_id: eventId,
             status: localStatus?.status ?? null,
-            hidden: localOverride?.hidden,
-            notes: localOverride?.notes,
+            hidden: localOverride?.hidden ?? false,
+            notes: localOverride?.notes ?? null,
             updated_at: localUpdatedAt,
           })
           continue
@@ -206,6 +206,7 @@ export function useSync() {
     async (eventId: string, status: EventStatus | null) => {
       const updatedAt = new Date().toISOString()
       const nextMap = { ...statusMap }
+      const currentOverride = overrideMap[eventId]
 
       if (status) {
         nextMap[eventId] = { status, updatedAt }
@@ -222,12 +223,14 @@ export function useSync() {
           owner_id: user.id,
           base_event_id: eventId,
           status,
+          hidden: currentOverride?.hidden ?? false,
+          notes: currentOverride?.notes ?? null,
           updated_at: updatedAt,
         },
         { onConflict: "owner_id,base_event_id" }
       )
     },
-    [persistStatus, statusMap, user]
+    [overrideMap, persistStatus, statusMap, user]
   )
 
   const setOverride = useCallback(
