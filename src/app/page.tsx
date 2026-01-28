@@ -347,11 +347,12 @@ export default function Home() {
     })
 
     const colorMap = new Map<string, EventColor>()
-    const minLightness = 44
-    const maxLightness = 72
+    const hueOffsets = [0, 6, -6, 12, -12, 18, -18]
+    const lightnessLevels = [42, 52, 62, 70]
+    const saturationLevels = [74, 68, 62, 56]
 
     slotEntries.forEach(([_, slotEvents], slotIndex) => {
-      const hue = (slotIndex * 137.5 + 24) % 360
+      const baseHue = (slotIndex * 137.5 + 24) % 360
       const sortedEvents = [...slotEvents].sort((a, b) => {
         const startDiff =
           new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
@@ -360,17 +361,20 @@ export default function Home() {
         if (titleDiff !== 0) return titleDiff
         return a.id.localeCompare(b.id)
       })
-      const step = (maxLightness - minLightness) / (sortedEvents.length + 1)
-
       sortedEvents.forEach((event, index) => {
-        const lightness = minLightness + step * (index + 1)
-        const borderLightness = Math.max(28, lightness - 12)
-        const background = `hsl(${hue.toFixed(1)} 70% ${lightness.toFixed(
+        const hueShift = hueOffsets[index % hueOffsets.length]
+        const band = Math.floor(index / hueOffsets.length)
+        const lightness = lightnessLevels[band % lightnessLevels.length]
+        const saturation = saturationLevels[band % saturationLevels.length]
+        const hue = (baseHue + hueShift) % 360
+        const borderLightness = Math.max(26, lightness - 18)
+        const background = `hsl(${hue.toFixed(1)} ${saturation.toFixed(
           1
-        )}%)`
-        const border = `hsl(${hue.toFixed(1)} 72% ${borderLightness.toFixed(
-          1
-        )}%)`
+        )}% ${lightness.toFixed(1)}%)`
+        const border = `hsl(${hue.toFixed(1)} ${Math.min(
+          86,
+          saturation + 10
+        ).toFixed(1)}% ${borderLightness.toFixed(1)}%)`
         const text = lightness > 60 ? "#0f172a" : "#f8fafc"
 
         colorMap.set(event.id, { background, border, text })
