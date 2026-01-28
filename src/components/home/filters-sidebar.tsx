@@ -1,7 +1,9 @@
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ViewMode } from "@/lib/viewStore"
 
 type FiltersSidebarProps = {
   view: ViewMode
+  onViewChange: (value: ViewMode) => void
   rangeLabel: string
   statusFilter: "all" | "marked" | "maybe" | "going" | "sure" | "none"
   timeFilter: "all" | "timed" | "undetermined"
@@ -21,6 +23,7 @@ type FiltersSidebarProps = {
 
 export function FiltersSidebar({
   view,
+  onViewChange,
   rangeLabel,
   statusFilter,
   timeFilter,
@@ -38,6 +41,32 @@ export function FiltersSidebar({
   return (
     <aside className="hidden max-h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-border/70 bg-card p-4 text-sm shadow-sm lg:block">
       <div className="flex flex-col gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+            Visualização
+          </p>
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(value) => {
+              if (value) onViewChange(value as ViewMode)
+            }}
+            className="mt-3 w-full rounded-full border border-border bg-background/80 p-1 shadow-sm"
+          >
+            <ToggleGroupItem
+              value="calendar"
+              className="flex-1 rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              Calendário
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="list"
+              className="flex-1 rounded-full px-4 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              Lista
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
         <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Em foco

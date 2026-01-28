@@ -23,7 +23,6 @@ import { dateFnsLocalizer, type View } from "react-big-calendar"
 import { EventDetailsSheet } from "@/components/event-details-sheet"
 import { CalendarPanel } from "@/components/home/calendar-panel"
 import { FiltersSidebar } from "@/components/home/filters-sidebar"
-import { HomeHeader } from "@/components/home/home-header"
 import { ListPanel } from "@/components/home/list-panel"
 import { RightSidebar } from "@/components/home/right-sidebar"
 import { SearchCard } from "@/components/home/search-card"
@@ -484,9 +483,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/60">
-      <HomeHeader view={view} onViewChange={setView} />
-
-      <main className="mx-auto w-full max-w-none px-4 py-6">
+      <main className="mx-auto w-full max-w-none px-4 py-4">
         {errorMessage ? (
           <div className="rounded-2xl border border-destructive/40 bg-background p-6 text-sm text-destructive">
             {errorMessage}
@@ -501,6 +498,7 @@ export default function Home() {
             <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
               <FiltersSidebar
                 view={view}
+                onViewChange={setView}
                 rangeLabel={rangeLabel}
                 statusFilter={statusFilter}
                 timeFilter={timeFilter}
