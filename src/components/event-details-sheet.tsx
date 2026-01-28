@@ -282,7 +282,7 @@ export function EventDetailsSheet({
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    LGBT
+                    Obs.
                   </p>
                   <p className="mt-1 text-sm text-foreground">
                     {event.lgbt?.trim() || "Não informado"}

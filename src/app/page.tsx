@@ -95,6 +95,12 @@ export default function Home() {
   const autoJumpInFlight = useRef(false)
   const lastAutoJumpRange = useRef<string | null>(null)
 
+  const normalizeText = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+
   useEffect(() => {
     const viewParam = searchParams.get("view")
     if (viewParam === "calendar" || viewParam === "list") {
@@ -231,6 +237,8 @@ export default function Home() {
   }, [listEnd, listStart, view])
 
   const statusFilteredEvents = useMemo(() => {
+    const normalizedSearch = normalizeText(searchTerm.trim())
+
     return events.filter((event) => {
       const status = getStatus(event.id)
       if (statusFilter === "marked") {
@@ -244,9 +252,22 @@ export default function Home() {
       if (statusFilter !== "all") {
         return status === statusFilter
       }
+
+      if (normalizedSearch) {
+        const haystack = [
+          event.title,
+          event.location ?? "",
+          event.description ?? "",
+          event.ritmos ?? "",
+        ].join(" ")
+        if (!normalizeText(haystack).includes(normalizedSearch)) {
+          return false
+        }
+      }
+
       return true
     })
-  }, [events, getStatus, statusFilter])
+  }, [events, getStatus, searchTerm, statusFilter])
 
   const timeFilteredEvents = useMemo(() => {
     if (timeFilter === "all") return statusFilteredEvents
