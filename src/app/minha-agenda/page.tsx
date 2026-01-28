@@ -5,6 +5,7 @@ import { addYears, format, startOfYear } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import Link from "next/link"
 
+import { AuthMenu } from "@/components/auth-menu"
 import { EventRow } from "@/components/event-row"
 import type { BaseEvent } from "@/lib/eventTypes"
 import { supabaseClient } from "@/lib/supabaseClient"
@@ -16,7 +17,7 @@ type DateRange = {
 }
 
 export default function MinhaAgendaPage() {
-  const { getStatus, setStatus } = useSync()
+  const { getStatus, setStatus, syncing } = useSync()
   const [events, setEvents] = useState<BaseEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -95,6 +96,7 @@ export default function MinhaAgendaPage() {
             >
               Voltar para agenda geral
             </Link>
+            <AuthMenu syncing={syncing} />
           </div>
         </div>
       </header>
