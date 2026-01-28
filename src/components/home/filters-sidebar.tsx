@@ -3,13 +3,13 @@ import type { ViewMode } from "@/lib/viewStore"
 type FiltersSidebarProps = {
   view: ViewMode
   rangeLabel: string
-  statusFilter: "all" | "marked" | "maybe" | "going" | "sure" | "not_going" | "none"
+  statusFilter: "all" | "marked" | "maybe" | "going" | "sure" | "none"
   timeFilter: "all" | "timed" | "undetermined"
   calendarJumpDate: string
   listStart: string
   listEnd: string
   onStatusFilterChange: (
-    value: "all" | "marked" | "maybe" | "going" | "sure" | "not_going" | "none"
+    value: "all" | "marked" | "maybe" | "going" | "sure" | "none"
   ) => void
   onTimeFilterChange: (value: "all" | "timed" | "undetermined") => void
   onCalendarJumpDateChange: (value: string) => void
@@ -66,7 +66,6 @@ export function FiltersSidebar({
                       | "maybe"
                       | "going"
                       | "sure"
-                      | "not_going"
                       | "none"
                   )
                 }
@@ -74,7 +73,7 @@ export function FiltersSidebar({
               >
                 <option value="all">Todos</option>
                 <option value="marked">Marcados</option>
-                <option value="maybe">Talvez</option>
+                <option value="maybe">Estou pensando</option>
                 <option value="going">Vou</option>
                 <option value="sure">Certeza</option>
                 <option value="none">Sem status</option>
@@ -187,7 +186,6 @@ export function FiltersSidebar({
                       | "maybe"
                       | "going"
                       | "sure"
-                      | "not_going"
                       | "none"
                   )
                 }
@@ -196,9 +194,8 @@ export function FiltersSidebar({
                 <option value="all">Todos</option>
                 <option value="marked">Marcados</option>
                 <option value="maybe">Estou pensando</option>
-                <option value="going">Quero ir</option>
+                <option value="going">Vou</option>
                 <option value="sure">Certeza</option>
-                <option value="not_going">Não vou</option>
                 <option value="none">Sem status</option>
               </select>
             </div>

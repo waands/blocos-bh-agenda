@@ -87,7 +87,7 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "marked" | "maybe" | "going" | "sure" | "not_going" | "none"
+    "all" | "marked" | "maybe" | "going" | "sure" | "none"
   >("all")
   const [timeFilter, setTimeFilter] = useState<
     "all" | "timed" | "undetermined"
@@ -232,8 +232,7 @@ export default function Home() {
         return (
           status === "maybe" ||
           status === "going" ||
-          status === "sure" ||
-          status === "not_going"
+          status === "sure"
         )
       }
 
@@ -276,8 +275,7 @@ export default function Home() {
       return (
         status === "maybe" ||
         status === "going" ||
-        status === "sure" ||
-        status === "not_going"
+        status === "sure"
       )
     })
   }, [events, getStatus])
