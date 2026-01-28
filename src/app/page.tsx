@@ -87,7 +87,7 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState<Date>(startOfDay(new Date()))
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "marked" | "maybe" | "going" | "sure" | "none"
+    "all" | "marked" | "not_going" | "maybe" | "sure" | "none"
   >("all")
   const [timeFilter, setTimeFilter] = useState<
     "all" | "timed" | "undetermined"
@@ -106,14 +106,20 @@ export default function Home() {
     const allowedStatuses = new Set([
       "all",
       "marked",
+      "not_going",
       "maybe",
-      "going",
       "sure",
       "none",
     ])
     if (statusParam && allowedStatuses.has(statusParam)) {
       setStatusFilter(
-        statusParam as "all" | "marked" | "maybe" | "going" | "sure" | "none"
+        statusParam as
+          | "all"
+          | "marked"
+          | "not_going"
+          | "maybe"
+          | "sure"
+          | "none"
       )
     }
 
@@ -230,12 +236,15 @@ export default function Home() {
       const status = getStatus(event.id)
       if (statusFilter === "marked") {
         return (
-          status === "maybe" ||
-          status === "going" ||
-          status === "sure"
+          status === "not_going" || status === "maybe" || status === "sure"
         )
       }
-
+      if (statusFilter === "none") {
+        return status === null
+      }
+      if (statusFilter !== "all") {
+        return status === statusFilter
+      }
       return true
     })
   }, [events, getStatus, statusFilter])
@@ -272,11 +281,7 @@ export default function Home() {
   const personalEvents = useMemo(() => {
     return events.filter((event) => {
       const status = getStatus(event.id)
-      return (
-        status === "maybe" ||
-        status === "going" ||
-        status === "sure"
-      )
+      return status === "maybe" || status === "sure"
     })
   }, [events, getStatus])
 

@@ -3,13 +3,13 @@ import type { ViewMode } from "@/lib/viewStore"
 type FiltersSidebarProps = {
   view: ViewMode
   rangeLabel: string
-  statusFilter: "all" | "marked" | "maybe" | "going" | "sure" | "none"
+  statusFilter: "all" | "marked" | "not_going" | "maybe" | "sure" | "none"
   timeFilter: "all" | "timed" | "undetermined"
   calendarJumpDate: string
   listStart: string
   listEnd: string
   onStatusFilterChange: (
-    value: "all" | "marked" | "maybe" | "going" | "sure" | "none"
+    value: "all" | "marked" | "not_going" | "maybe" | "sure" | "none"
   ) => void
   onTimeFilterChange: (value: "all" | "timed" | "undetermined") => void
   onCalendarJumpDateChange: (value: string) => void
@@ -63,8 +63,8 @@ export function FiltersSidebar({
                     event.target.value as
                       | "all"
                       | "marked"
+                      | "not_going"
                       | "maybe"
-                      | "going"
                       | "sure"
                       | "none"
                   )
@@ -73,9 +73,9 @@ export function FiltersSidebar({
               >
                 <option value="all">Todos</option>
                 <option value="marked">Marcados</option>
-                <option value="maybe">Estou pensando</option>
-                <option value="going">Vou</option>
-                <option value="sure">Certeza</option>
+                <option value="not_going">Não vou</option>
+                <option value="maybe">Pensando</option>
+                <option value="sure">Vou sim</option>
                 <option value="none">Sem status</option>
               </select>
             </div>
@@ -183,8 +183,8 @@ export function FiltersSidebar({
                     event.target.value as
                       | "all"
                       | "marked"
+                      | "not_going"
                       | "maybe"
-                      | "going"
                       | "sure"
                       | "none"
                   )
@@ -193,9 +193,9 @@ export function FiltersSidebar({
               >
                 <option value="all">Todos</option>
                 <option value="marked">Marcados</option>
-                <option value="maybe">Estou pensando</option>
-                <option value="going">Vou</option>
-                <option value="sure">Certeza</option>
+                <option value="not_going">Não vou</option>
+                <option value="maybe">Pensando</option>
+                <option value="sure">Vou sim</option>
                 <option value="none">Sem status</option>
               </select>
             </div>

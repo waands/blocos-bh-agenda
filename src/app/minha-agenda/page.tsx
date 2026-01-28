@@ -54,7 +54,7 @@ export default function MinhaAgendaPage() {
     return events
       .filter((event) => {
         const status = getStatus(event.id)
-        return status === "maybe" || status === "going" || status === "sure"
+        return status === "maybe" || status === "sure"
       })
       .sort(
         (a, b) =>

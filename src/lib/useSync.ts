@@ -15,6 +15,26 @@ import { useAuth } from "@/lib/useAuth"
 type StatusMap = Record<string, StatusRecord>
 type OverrideMap = Record<string, OverrideRecord>
 
+function normalizeStatus(value: string | null | undefined): EventStatus | null {
+  if (!value) return null
+  if (value === "going") return "sure"
+  if (value === "not_going" || value === "maybe" || value === "sure") {
+    return value
+  }
+  return null
+}
+
+function normalizeStatusMap(map: Record<string, StatusRecord>) {
+  const normalized: StatusMap = {}
+  for (const [eventId, record] of Object.entries(map)) {
+    const nextStatus = normalizeStatus(record.status)
+    if (nextStatus) {
+      normalized[eventId] = { ...record, status: nextStatus }
+    }
+  }
+  return normalized
+}
+
 function isNewer(a?: string, b?: string) {
   if (!a) return false
   if (!b) return true
@@ -38,7 +58,7 @@ export function useSync() {
     if (hasLoadedLocal.current) return
     const localStatus = loadStatusMap<StatusRecord>()
     const localOverrides = loadOverrideMap<OverrideRecord>()
-    setStatusMap(localStatus)
+    setStatusMap(normalizeStatusMap(localStatus))
     setOverrideMap(localOverrides)
     hasLoadedLocal.current = true
   }, [])
@@ -70,9 +90,10 @@ export function useSync() {
 
       for (const row of overrideRows ?? []) {
         const updatedAt = row.updated_at ?? new Date(0).toISOString()
-        if (row.status) {
+        const normalizedStatus = normalizeStatus(row.status)
+        if (normalizedStatus) {
           remoteStatusMap[row.base_event_id] = {
-            status: row.status as EventStatus,
+            status: normalizedStatus,
             updatedAt,
           }
         }

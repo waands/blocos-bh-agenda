@@ -1,4 +1,4 @@
-export type EventStatus = "maybe" | "going" | "sure"
+export type EventStatus = "not_going" | "maybe" | "sure"
 
 export type StatusRecord = {
   status: EventStatus

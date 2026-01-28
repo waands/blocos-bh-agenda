@@ -187,14 +187,16 @@ export function CalendarPanel({
             const isHovered = hoveredEventId === event.resource.id
             const accent = color.border
             const outlineStyles =
-              status === "maybe"
-                ? {
-                    borderStyle: "dashed",
-                    borderWidth: "2px",
-                  }
-                : status === "going"
+              status === "not_going"
                 ? {
                     borderStyle: "solid",
+                    borderWidth: "2px",
+                    borderColor: "#f43f5e",
+                    boxShadow: "0 0 0 2px #f43f5e33",
+                  }
+                : status === "maybe"
+                ? {
+                    borderStyle: "dashed",
                     borderWidth: "2px",
                   }
                 : status === "sure"

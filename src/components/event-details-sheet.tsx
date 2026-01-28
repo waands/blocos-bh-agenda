@@ -17,9 +17,9 @@ import type { BaseEvent } from "@/lib/eventTypes"
 import { loadGoingRoleMap, saveGoingRoleMap } from "@/lib/localEventStore"
 
 const statusOptions = [
-  { value: "maybe", label: "Estou pensando" },
-  { value: "going", label: "Vou" },
-  { value: "sure", label: "Certeza" },
+  { value: "not_going", label: "Não vou" },
+  { value: "maybe", label: "Pensando" },
+  { value: "sure", label: "Vou sim" },
 ] as const
 
 type StatusValue = (typeof statusOptions)[number]["value"]
@@ -144,10 +144,10 @@ export function EventDetailsSheet({
       {trigger ? <SheetTrigger asChild>{trigger}</SheetTrigger> : null}
       <SheetContent side="right" className="flex h-full flex-col">
         <SheetHeader className="border-b border-border">
-          <SheetTitle className="text-2xl font-semibold">
+          <SheetTitle className="text-4xl font-semibold leading-tight sm:text-5xl">
             {event.title}
           </SheetTitle>
-          <SheetDescription className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
             <div>
               <p className="uppercase tracking-widest text-muted-foreground">
                 Data
@@ -164,7 +164,7 @@ export function EventDetailsSheet({
                 {scheduleLabel}
               </p>
             </div>
-          </SheetDescription>
+          </div>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 py-6 text-sm">
           <div className="space-y-6">
@@ -172,15 +172,15 @@ export function EventDetailsSheet({
               <p className="text-xs uppercase tracking-widest text-muted-foreground">
                 Local
               </p>
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-base font-medium text-foreground">
+              <div className="flex items-center gap-3">
+                <p className="min-w-0 flex-1 text-base font-medium text-foreground">
                   {hasLocation ? locationLabel : "Local a confirmar"}
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-10 w-10 p-0"
                   disabled={!hasLocation}
                   aria-label={
                     copyFeedback === "copied"
@@ -203,7 +203,7 @@ export function EventDetailsSheet({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
-                    className="h-4 w-4"
+                    className="h-5 w-5"
                   >
                     <path
                       d="M9 9h9v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z"
@@ -301,17 +301,26 @@ export function EventDetailsSheet({
             onValueChange={(value) => handleStatusChange(value as StatusValue)}
             className="flex flex-wrap gap-2"
           >
-            {statusOptions.map((option) => (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                className="rounded-full border border-border px-4 py-1.5 text-sm font-medium transition data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                {option.label}
-              </ToggleGroupItem>
-            ))}
+            {statusOptions.map((option) => {
+              const activeStyle =
+                option.value === "not_going"
+                  ? "data-[state=on]:border-rose-500 data-[state=on]:bg-rose-500 data-[state=on]:text-white"
+                  : option.value === "maybe"
+                  ? "data-[state=on]:border-amber-500 data-[state=on]:bg-amber-500 data-[state=on]:text-white"
+                  : "data-[state=on]:border-emerald-500 data-[state=on]:bg-emerald-500 data-[state=on]:text-white"
+
+              return (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className={`rounded-full border border-border px-4 py-1.5 text-sm font-medium transition ${activeStyle}`}
+                >
+                  {option.label}
+                </ToggleGroupItem>
+              )
+            })}
           </ToggleGroup>
-          {status === "going" ? (
+          {status === "sure" ? (
             <div className="mt-4 space-y-2">
               <p className="text-xs uppercase tracking-widest text-muted-foreground">
                 Como você vai participar
