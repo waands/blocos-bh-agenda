@@ -88,7 +88,7 @@ export function useSync() {
       const overrideUpserts: Array<{
         owner_id: string
         base_event_id: string
-        status: EventStatus
+        status: EventStatus | null
         hidden?: boolean
         notes?: string
         updated_at: string
@@ -120,7 +120,7 @@ export function useSync() {
           overrideUpserts.push({
             owner_id: user.id,
             base_event_id: eventId,
-              status: localStatus?.status ?? "maybe",
+            status: localStatus?.status ?? null,
             hidden: localOverride?.hidden,
             notes: localOverride?.notes,
             updated_at: localUpdatedAt,
@@ -143,7 +143,7 @@ export function useSync() {
             overrideUpserts.push({
               owner_id: user.id,
               base_event_id: eventId,
-              status: localStatus?.status ?? remoteStatus?.status ?? "maybe",
+              status: localStatus?.status ?? remoteStatus?.status ?? null,
               hidden:
                 localOverride?.hidden ?? remoteOverride?.hidden ?? false,
               notes: localOverride?.notes ?? remoteOverride?.notes,
@@ -180,11 +180,14 @@ export function useSync() {
   }, [authLoading, mergeAndSync, user])
 
   const setStatus = useCallback(
-    async (eventId: string, status: EventStatus) => {
+    async (eventId: string, status: EventStatus | null) => {
       const updatedAt = new Date().toISOString()
-      const nextMap = {
-        ...statusMap,
-        [eventId]: { status, updatedAt },
+      const nextMap = { ...statusMap }
+
+      if (status) {
+        nextMap[eventId] = { status, updatedAt }
+      } else {
+        delete nextMap[eventId]
       }
 
       persistStatus(nextMap)
@@ -220,7 +223,7 @@ export function useSync() {
         {
           owner_id: user.id,
           base_event_id: eventId,
-          status: statusMap[eventId]?.status ?? "maybe",
+          status: statusMap[eventId]?.status ?? null,
           hidden: override.hidden ?? false,
           notes: override.notes ?? null,
           updated_at: updatedAt,

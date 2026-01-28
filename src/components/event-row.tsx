@@ -2,6 +2,7 @@
 
 import { EventDetailsSheet } from "@/components/event-details-sheet"
 import type { BaseEvent } from "@/lib/eventTypes"
+import type { EventStatus } from "@/lib/statusTypes"
 
 function formatEventSummary(event: BaseEvent) {
   const start = new Date(event.starts_at)
@@ -25,8 +26,8 @@ function formatEventSummary(event: BaseEvent) {
 
 type EventRowProps = {
   event: BaseEvent
-  status: "maybe" | "going" | "sure" | "not_going" | null
-  onStatusChange: (status: "maybe" | "going" | "sure" | "not_going") => void
+  status: EventStatus | null
+  onStatusChange: (status: EventStatus | null) => void
 }
 
 export function EventRow({ event, status, onStatusChange }: EventRowProps) {

@@ -203,13 +203,6 @@ export function CalendarPanel({
                     borderWidth: "2px",
                     boxShadow: `0 0 0 2px ${accent}, 0 0 12px ${accent}55`,
                   }
-                : status === "not_going"
-                ? {
-                    borderStyle: "dashed",
-                    borderWidth: "1px",
-                    opacity: 0.45,
-                    filter: "grayscale(0.6)",
-                  }
                 : {}
             const baseBorderWidth = isHovered ? "2px" : "1.5px"
 
