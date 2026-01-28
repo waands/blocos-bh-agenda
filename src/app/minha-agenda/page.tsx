@@ -17,7 +17,7 @@ type DateRange = {
 }
 
 export default function MinhaAgendaPage() {
-  const { getStatus, setStatus, syncing } = useSync()
+  const { getStatus, setStatus, isAuthenticated, syncing } = useSync()
   const [events, setEvents] = useState<BaseEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -102,6 +102,9 @@ export default function MinhaAgendaPage() {
       </header>
 
       <main className="mx-auto w-full max-w-none px-4 py-6">
+        <div className="mb-6">
+          <AuthPanel isAuthenticated={isAuthenticated} syncing={syncing} />
+        </div>
         <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

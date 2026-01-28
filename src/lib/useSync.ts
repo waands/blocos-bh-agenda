@@ -17,6 +17,8 @@ type OverrideMap = Record<string, OverrideRecord>
 
 function normalizeStatus(value: string | null | undefined): EventStatus | null {
   if (!value) return null
+  if (value === "talvez") return "maybe"
+  if (value === "vou" || value === "certeza") return "sure"
   if (value === "going") return "sure"
   if (value === "not_going" || value === "maybe" || value === "sure") {
     return value

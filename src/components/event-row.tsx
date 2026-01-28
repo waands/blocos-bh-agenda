@@ -39,13 +39,14 @@ export function EventRow({ event, status, onStatusChange }: EventRowProps) {
       trigger={
         <button
           type="button"
-          className="flex w-full flex-col gap-2 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-accent/30"
+          data-status={status ?? "none"}
+          className="flex w-full flex-col gap-2 rounded-2xl border border-border/80 border-l-4 border-l-primary/30 bg-gradient-to-r from-background via-background to-muted/30 px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/40 hover:shadow-md data-[status=maybe]:border-amber-300/70 data-[status=maybe]:border-l-amber-400 data-[status=maybe]:from-amber-50/50 data-[status=not_going]:border-rose-300/70 data-[status=not_going]:border-l-rose-400 data-[status=not_going]:from-rose-50/50 data-[status=sure]:border-emerald-300/70 data-[status=sure]:border-l-emerald-400 data-[status=sure]:from-emerald-50/60"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-lg font-semibold text-foreground">
               {event.title}
             </h3>
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-semibold text-muted-foreground">
               {formatEventSummary(event)}
             </span>
           </div>
